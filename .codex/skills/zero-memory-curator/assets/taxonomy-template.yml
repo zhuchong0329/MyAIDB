@@ -1,0 +1,77 @@
+# Starter taxonomy for zero-memory-curator.
+# Keep the inbox in `.learnings/` and promote reusable topics into flat packages under `./.memory/`.
+
+inbox:
+  learnings_dir: .learnings
+  files:
+    - ERRORS.md
+    - LEARNINGS.md
+    - FEATURE_REQUESTS.md
+
+dimensions:
+  component:
+    - agent
+    - docs
+    - workflow
+    - tooling
+    - runtime
+    - application
+    - multi-component
+  kind:
+    - incident
+    - bug-pattern
+    - knowledge-gap
+    - best-practice
+    - reflection
+    - feature-gap
+    - automation-opportunity
+  stage:
+    - clarification
+    - design
+    - implementation
+    - testing
+    - review
+    - release
+    - operations
+  scope:
+    - task
+    - project
+    - cross-project
+  actionability:
+    - reference-only
+    - must-apply
+    - candidate-rule
+    - candidate-skill
+    - needs-human-decision
+
+defaults:
+  ERRORS.md:
+    kind: incident
+    actionability: reference-only
+  LEARNINGS.md:
+    kind: knowledge-gap
+    actionability: reference-only
+  FEATURE_REQUESTS.md:
+    kind: feature-gap
+    actionability: needs-human-decision
+
+memory_packages:
+  root_dir: .memory
+  entry_file: MEMORY.md
+  optional_dirs:
+    - references
+    - examples
+  entry_sections:
+    - Description
+    - Details
+    - Related
+    - Examples
+
+promotion:
+  rules_target: AGENTS.md
+  facts_target: MEMORY.md
+  package_root: .memory
+  skill_trigger:
+    min_recurrence: 3
+    require_procedural_steps: true
+    require_cross_task_value: true

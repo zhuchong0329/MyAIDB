@@ -1,0 +1,4 @@
+/target/
+/extra/zero-agent-memory/
+*.log
+.DS_Store
