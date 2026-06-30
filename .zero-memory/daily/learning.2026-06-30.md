@@ -29,3 +29,18 @@ Source Slug: feature-0-rust-skeleton
 Source Context: `.zero-memory/context/feature-0-rust-skeleton/context.md`
 Source Sections: Loop End
 Related Files: `README.md`, `scripts/bootstrap.ps1`, `scripts/bootstrap.sh`
+
+## DL-20260630-114505.227Z-vector-owned-readonly-api
+
+Summary: MyAIDB Feature 1 uses `Value::Vector(Vec<f32>)` internally but exposes vectors through read-only slice APIs.
+
+Durable details: `Vec<f32>` keeps early construction, testing, and debugging simple, which fits the teaching-oriented project goal. The public accessor `as_vector() -> Option<&[f32]>` avoids promising caller-side append/growth semantics. This keeps the API compatible with a future internal switch to `Box<[f32]>` or another compact vector storage representation.
+
+Why reusable: Future vector storage, schema validation, and index loops should continue to expose read-only vector views unless mutation semantics are deliberately introduced.
+
+Suggested memory targets: core.value.vector-representation, workspace.api.design
+
+Source Slug: feature-1-value-type
+Source Context: `.zero-memory/context/feature-1-value-type/context.md`
+Source Sections: Design, Loop End
+Related Files: `src/core/value.rs`

@@ -1,3 +1,7 @@
+pub mod core;
+
+pub use core::{Value, ValueType};
+
 pub const PROJECT_NAME: &str = "MyAIDB";
 
 pub fn project_version() -> &'static str {
