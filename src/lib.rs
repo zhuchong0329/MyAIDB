@@ -1,6 +1,8 @@
 pub mod core;
 
-pub use core::{Column, Row, Schema, SchemaError, Table, TableError, Value, ValueType};
+pub use core::{
+    Catalog, CatalogError, Column, Row, Schema, SchemaError, Table, TableError, Value, ValueType,
+};
 
 pub const PROJECT_NAME: &str = "MyAIDB";
 

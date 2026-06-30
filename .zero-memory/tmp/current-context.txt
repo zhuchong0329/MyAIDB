@@ -1,1 +1,1 @@
-.zero-memory/context/feature-3-table/context.md
+.zero-memory/context/feature-4-catalog/context.md

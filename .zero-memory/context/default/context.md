@@ -38,6 +38,7 @@ description: MyAIDB project default zero-memory context.
 - Feature 1 completed: `Value` and `ValueType` are implemented under `src/core`, with `Vector(Vec<f32>)` exposed through read-only slice APIs. Next loop is Feature 2: `Row` and `Schema`.
 - Feature 2 completed: `Row`, `Column`, `Schema`, and strict schema validation are implemented under `src/core`. Next loop is Feature 3: in-memory `Table`.
 - Feature 3 completed: in-memory `Table` stores owned rows after schema validation, preserving row order and rejecting invalid rows without mutation. Next loop is Feature 4: `Catalog`.
+- Feature 4 completed: in-memory `Catalog` owns multiple tables, supports exact-name create/insert/lookup, mutable table access, and insertion-order table-name listing. Next loop should start the SQL frontend boundary.
 
 ## Rust Environment
 

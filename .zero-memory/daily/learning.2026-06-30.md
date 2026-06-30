@@ -74,3 +74,18 @@ Source Slug: feature-3-table
 Source Context: `.zero-memory/context/feature-3-table/context.md`
 Source Sections: Design, Loop End
 Related Files: `src/core/table.rs`
+
+## DL-20260630-122917.876Z-catalog-vec-exact-name-contract
+
+Summary: MyAIDB Catalog currently uses `Vec<Table>` and exact case-sensitive table names.
+
+Durable details: `Catalog` stores tables in insertion order with `Vec<Table>` for teaching clarity and deterministic table-name listing. Duplicate detection and lookup use exact string equality. This intentionally avoids SQL identifier normalization, namespaces, system catalogs, and performance-oriented `HashMap` lookup until SQL parser/binder or larger table-count requirements justify that complexity.
+
+Why reusable: Future SQL, Catalog, and binder loops must not assume table names are already SQL-normalized or case-folded, and should preserve the current exact-name contract unless explicitly changing identifier semantics.
+
+Suggested memory targets: core.catalog.identifier-rules, sql.binder.future-semantics
+
+Source Slug: feature-4-catalog
+Source Context: `.zero-memory/context/feature-4-catalog/context.md`
+Source Sections: Design, Loop End
+Related Files: `src/core/catalog.rs`
