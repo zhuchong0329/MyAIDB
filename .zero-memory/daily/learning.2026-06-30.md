@@ -89,3 +89,18 @@ Source Slug: feature-4-catalog
 Source Context: `.zero-memory/context/feature-4-catalog/context.md`
 Source Sections: Design, Loop End
 Related Files: `src/core/catalog.rs`
+
+## DL-20260630-205900.000Z-sql-ast-before-execution
+
+Summary: MyAIDB Feature 5 keeps SQL parsing separate from execution by producing AST values only.
+
+Durable details: The SQL frontend now has token, lexer, AST, and parser modules. It parses `CREATE TABLE` into column definitions using core `ValueType`, but parses `INSERT INTO ... VALUES` into SQL `Literal` values instead of runtime `Value`. This leaves room for a later binder/execution layer to handle casts, schema validation, parameters, null semantics, and catalog mutation explicitly.
+
+Why reusable: Future SQL loops should avoid putting execution behavior into the parser. The parser should keep syntax concerns local, while binder/executor loops decide how syntax maps to `Catalog`, `Table`, `Row`, and `Value`.
+
+Suggested memory targets: sql.frontend.boundary, sql.binder.future-semantics
+
+Source Slug: feature-5-sql-frontend
+Source Context: `.zero-memory/context/feature-5-sql-frontend/context.md`
+Source Sections: Design, Loop End
+Related Files: `src/sql/parser.rs`, `src/sql/ast.rs`, `src/sql/lexer.rs`

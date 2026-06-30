@@ -39,6 +39,7 @@ description: MyAIDB project default zero-memory context.
 - Feature 2 completed: `Row`, `Column`, `Schema`, and strict schema validation are implemented under `src/core`. Next loop is Feature 3: in-memory `Table`.
 - Feature 3 completed: in-memory `Table` stores owned rows after schema validation, preserving row order and rejecting invalid rows without mutation. Next loop is Feature 4: `Catalog`.
 - Feature 4 completed: in-memory `Catalog` owns multiple tables, supports exact-name create/insert/lookup, mutable table access, and insertion-order table-name listing. Next loop should start the SQL frontend boundary.
+- Feature 5 completed: SQL frontend boundary parses a tiny SQL subset into AST without execution. It includes lexer/token/parser/AST support for `CREATE TABLE` and `INSERT INTO ... VALUES`, case-insensitive keywords, exact identifier preservation, `ValueType` column types, and SQL `Literal` insert values. Next loop should likely introduce binder/execution boundary decisions.
 
 ## Rust Environment
 

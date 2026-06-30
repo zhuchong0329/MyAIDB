@@ -118,3 +118,9 @@ Reusable Learning:
 Next Loop:
 
 - Start Feature 5: define the first SQL frontend boundary, likely tokenizer/parser planning before implementation.
+
+## Feature 5 Planning
+
+- User asked to align Loop 5 scope before implementation.
+- Proposed direction: start SQL frontend with tokenizer and a minimal parser boundary, not execution.
+- Boundary to confirm: no binder, no execution, no catalog mutation, no row insertion, no expression evaluator, no SQL identifier normalization beyond tokenization decisions.
