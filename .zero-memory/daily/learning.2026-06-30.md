@@ -44,3 +44,18 @@ Source Slug: feature-1-value-type
 Source Context: `.zero-memory/context/feature-1-value-type/context.md`
 Source Sections: Design, Loop End
 Related Files: `src/core/value.rs`
+
+## DL-20260630-115938.344Z-schema-exact-names-before-sql-identifiers
+
+Summary: Feature 2 keeps schema column-name lookup exact and case-sensitive because SQL identifier normalization is not implemented yet.
+
+Durable details: `Schema::column_index` compares column names exactly. This avoids quietly importing SQLite/PostgreSQL identifier rules before the parser/binder layers exist. Duplicate column detection also uses exact names. A future SQL parser/binder loop should decide whether identifiers are case-insensitive, quoted, normalized, or preserved.
+
+Why reusable: Table, insert, parser, and binder loops must not assume SQL-style identifier normalization already exists in `Schema`.
+
+Suggested memory targets: core.schema.identifier-rules, sql.parser.future-semantics
+
+Source Slug: feature-2-row-schema
+Source Context: `.zero-memory/context/feature-2-row-schema/context.md`
+Source Sections: Design, Loop End
+Related Files: `src/core/schema.rs`

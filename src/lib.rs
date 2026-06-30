@@ -1,6 +1,6 @@
 pub mod core;
 
-pub use core::{Value, ValueType};
+pub use core::{Column, Row, Schema, SchemaError, Value, ValueType};
 
 pub const PROJECT_NAME: &str = "MyAIDB";
 

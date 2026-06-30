@@ -36,6 +36,7 @@ description: MyAIDB project default zero-memory context.
 - Rationale: a strict loop engineering workflow needs reproducible commands, tests, formatting, and a minimal executable surface before feature loops such as `Value`, SQL parsing, or autoEmbed can be disciplined.
 - Feature 0 completed: root Rust package, minimal lib/bin, smoke tests, and verification gate are in place. Next loop is Feature 1: `Value` and the minimal type system.
 - Feature 1 completed: `Value` and `ValueType` are implemented under `src/core`, with `Vector(Vec<f32>)` exposed through read-only slice APIs. Next loop is Feature 2: `Row` and `Schema`.
+- Feature 2 completed: `Row`, `Column`, `Schema`, and strict schema validation are implemented under `src/core`. Next loop is Feature 3: in-memory `Table`.
 
 ## Rust Environment
 
