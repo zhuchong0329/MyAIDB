@@ -1,0 +1,8 @@
+[package]
+name = "myaidb"
+version = "0.1.0"
+edition = "2021"
+description = "A learning-oriented SQL database for autoEmbed-style semantic indexing experiments."
+license = "MIT OR Apache-2.0"
+
+[dependencies]

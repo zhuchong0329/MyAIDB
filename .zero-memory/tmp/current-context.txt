@@ -1,1 +1,1 @@
-.zero-memory/context/default/context.md
+.zero-memory/context/feature-0-rust-skeleton/context.md

@@ -28,3 +28,18 @@ description: MyAIDB project default zero-memory context.
 
 - `PRINCIPLES.md` records the MyAIDB original principles.
 - `DEVELOPMENT_PLAN.md` records the first-stage development plan.
+- `LOOP_ENGINEERING.md` records the feature-level loop engineering workflow: agent autonomy to test-passing within one feature, verification, failure classification, and `.zero-memory` learning persistence.
+
+## Current Planning
+
+- Candidate first feature loop: create the Rust project skeleton and verification gate before implementing database semantics.
+- Rationale: a strict loop engineering workflow needs reproducible commands, tests, formatting, and a minimal executable surface before feature loops such as `Value`, SQL parsing, or autoEmbed can be disciplined.
+- Feature 0 completed: root Rust package, minimal lib/bin, smoke tests, and verification gate are in place. Next loop is Feature 1: `Value` and the minimal type system.
+
+## Rust Environment
+
+- Added `README.md`, `rust-toolchain.toml`, `scripts/bootstrap.ps1`, and `scripts/bootstrap.sh` for cross-platform Rust environment setup.
+- Windows bootstrap installed Rustup through `winget`, then installed Rust stable with `rustfmt` and Clippy.
+- Verified installed tools by absolute path under `%USERPROFILE%\.cargo\bin`: `rustc 1.96.0`, `cargo 1.96.0`, `rustup 1.29.0`.
+- Current Codex PowerShell session still does not see `cargo` on PATH; restart the terminal/Codex session or reload PATH before using plain `cargo`.
+- Reusable learning logged in `.zero-memory/daily/learning.2026-06-30.md` as `DL-20260630-092841.280Z-rust-path-refresh`.
