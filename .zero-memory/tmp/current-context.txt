@@ -1,1 +1,1 @@
-.zero-memory/context/feature-2-row-schema/context.md
+.zero-memory/context/feature-3-table/context.md

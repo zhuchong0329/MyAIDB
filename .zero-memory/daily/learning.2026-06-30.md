@@ -59,3 +59,18 @@ Source Slug: feature-2-row-schema
 Source Context: `.zero-memory/context/feature-2-row-schema/context.md`
 Source Sections: Design, Loop End
 Related Files: `src/core/schema.rs`
+
+## DL-20260630-122051.961Z-table-owned-row-insert
+
+Summary: MyAIDB Table insertion consumes owned `Row` values and validates before mutation.
+
+Durable details: `Table::insert(row: Row)` takes ownership instead of cloning from `&Row`, which avoids copying owned `String`, `Vec<u8>`, and `Vec<f32>` payloads. The implementation validates with `schema.validate_row(&row)` before `rows.push(row)`, so failed inserts do not mutate table contents. Row lookup remains read-only with `row(index) -> Option<&Row>` and `rows() -> &[Row]`.
+
+Why reusable: Future INSERT, batch insert, and execution loops should preserve this ownership boundary and validate-before-mutate behavior unless a deliberate transactional layer changes the contract.
+
+Suggested memory targets: core.table.insert-contract, execution.insert.future-semantics
+
+Source Slug: feature-3-table
+Source Context: `.zero-memory/context/feature-3-table/context.md`
+Source Sections: Design, Loop End
+Related Files: `src/core/table.rs`

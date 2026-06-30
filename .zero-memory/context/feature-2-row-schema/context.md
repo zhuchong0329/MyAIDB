@@ -114,3 +114,9 @@ Reusable Learning:
 Next Loop:
 
 - Start Feature 3: define the in-memory `Table` foundation using `Schema` and `Row`.
+
+## Feature 3 Planning
+
+- User asked to align Loop 3 scope before implementation.
+- Proposed direction: implement the minimal in-memory `Table` foundation over `Schema` and `Row`.
+- Boundary to confirm: no catalog, SQL, execution engine, indexes, persistence, vector distance, or autoEmbed behavior in Loop 3.
