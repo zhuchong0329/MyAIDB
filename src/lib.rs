@@ -6,8 +6,9 @@ pub use core::{
     Catalog, CatalogError, Column, Row, Schema, SchemaError, Table, TableError, Value, ValueType,
 };
 pub use sql::{
-    execute_sql, parse_statement, ColumnDef, ExecuteError, ExecuteResult, LexError, Literal,
-    ParseError, SelectProjection, Statement, Token, TokenKind,
+    execute_sql, parse_statement, ColumnDef, ComparisonOperator, ExecuteError, ExecuteResult,
+    LexError, Literal, ParseError, SelectOrder, SelectPredicate, SelectProjection, SortDirection,
+    Statement, Token, TokenKind,
 };
 
 pub const PROJECT_NAME: &str = "MyAIDB";

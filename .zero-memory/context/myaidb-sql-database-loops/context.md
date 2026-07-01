@@ -5,7 +5,7 @@ description: Long-running MyAIDB SQL database implementation loops, including pa
 
 ## Status
 
-- active; context path migration completed on 2026-07-01.
+- active; Loop 11 implementation complete and verified.
 
 ## Current Summary
 
@@ -15,11 +15,12 @@ description: Long-running MyAIDB SQL database implementation loops, including pa
 - Loop 9 completed an interactive CLI/REPL for manual create/insert/select/show-tables workflows.
 - Loop 9.5 completed TTY line editing through `rustyline` while preserving the generic `BufRead` runner for piped stdin and tests.
 - Loop 10 completed CLI-only schema introspection with `.schema`, `schema`, and `describe <table>`, reusing `Catalog`, `Table`, and `Schema` APIs without changing SQL parser semantics.
-- Current active planning item: Loop 11 scope alignment. User wants each loop to become larger and more complex.
+- Current active task: Loop 11 query semantics expansion completed; next step is summarize, commit, or align Loop 12.
 
 ## Loop 11 Scope Draft
 
 - Recommended feature: expand SELECT query semantics with simple filtering and sorting end-to-end.
+- User accepted the scope and asked to start Loop 11.
 - Proposed in scope:
   - Add lexer tokens for comparison operators: `=`, `!=`, `<`, `<=`, `>`, `>=`.
   - Add AST types for simple predicates and ordering.
@@ -30,6 +31,25 @@ description: Long-running MyAIDB SQL database implementation loops, including pa
   - Preserve exact column matching through schema lookup and keep SELECT read-only.
   - Add lexer/parser/executor tests and CLI smoke coverage using create/insert/select with where/order/limit.
 - Proposed out of scope: boolean `AND`/`OR`/`NOT`, parentheses, expressions on both sides, column-to-column comparison, functions, aliases, joins, aggregates, indexes, query planner, vector search, collations, full SQL NULL three-valued logic, multi-column order, and parser-level `DESCRIBE`.
+
+## Loop 11 Start
+
+- Goal: implement `WHERE column op literal` and `ORDER BY column [ASC|DESC]` for SELECT while preserving the existing read-only SELECT boundary and owned result model.
+- Planned touched surfaces: `src/sql/token.rs`, `src/sql/lexer.rs`, `src/sql/ast.rs`, `src/sql/parser.rs`, `src/sql/executor.rs`, CLI smoke tests, and focused unit tests.
+- Verification plan: `cargo fmt`, `cargo test`, `cargo build`, `cargo fmt --check`, `cargo clippy --all-targets --all-features -- -D warnings`, and `git diff --check`.
+
+## Loop 11 End
+
+- Added comparison tokens for `=`, `!=`, `<`, `<=`, `>`, and `>=`.
+- Extended SELECT AST with `SelectPredicate`, `ComparisonOperator`, `SelectOrder`, and `SortDirection`; exported the new query types through `src/sql/mod.rs` and `src/lib.rs`.
+- Parser now supports `WHERE column op literal`, `ORDER BY column [ASC|DESC]`, and existing `LIMIT` after those clauses.
+- Executor now applies SELECT stages as `WHERE`, `ORDER BY`, `LIMIT`, then projection.
+- Predicate/order/projection column lookup all reuse `Schema::column_index`, preserving exact column semantics.
+- Predicate type mismatches surface as `SchemaError::TypeMismatch`; missing WHERE/ORDER columns surface as `SchemaError::ColumnNotFound`.
+- Unsupported null ordering comparisons and vector/blob ordering produce explicit executor errors.
+- Added lexer/parser/executor tests plus binary smoke coverage for filtered and ordered SELECT through stdin.
+- Verification passed: `cargo fmt`, `cargo test` (85 library tests, 4 smoke tests), `cargo build`, `cargo fmt --check`, `cargo clippy --all-targets --all-features -- -D warnings`, and `git diff --check`.
+- Reusable learning logged as `DL-20260701-070422.000Z-select-where-order-limit` and curated into `sql.executor.select-basic`; memory graph validation passed with only generated-index warnings.
 
 ## Important Current Worktree Notes
 

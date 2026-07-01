@@ -1,7 +1,10 @@
 use crate::ValueType;
 
 use super::lexer::LexError;
-use super::{lex, ColumnDef, Literal, SelectProjection, Statement, Token, TokenKind};
+use super::{
+    lex, ColumnDef, ComparisonOperator, Literal, SelectOrder, SelectPredicate, SelectProjection,
+    SortDirection, Statement, Token, TokenKind,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParseError {
@@ -21,6 +24,9 @@ pub enum ParseError {
         found: Option<Token>,
     },
     ExpectedLiteral {
+        found: Option<Token>,
+    },
+    ExpectedComparisonOperator {
         found: Option<Token>,
     },
     InvalidInteger {
@@ -130,6 +136,17 @@ impl Parser {
         let projection = self.consume_select_projection()?;
         self.consume_keyword("from")?;
         let table = self.consume_identifier()?;
+        let filter = if self.match_keyword("where") {
+            Some(self.consume_select_predicate()?)
+        } else {
+            None
+        };
+        let order = if self.match_keyword("order") {
+            self.consume_keyword("by")?;
+            Some(self.consume_select_order()?)
+        } else {
+            None
+        };
         let limit = if self.match_keyword("limit") {
             Some(self.consume_limit()?)
         } else {
@@ -139,6 +156,8 @@ impl Parser {
         Ok(Statement::Select {
             table,
             projection,
+            filter,
+            order,
             limit,
         })
     }
@@ -155,6 +174,48 @@ impl Parser {
         }
 
         Ok(SelectProjection::Columns(columns))
+    }
+
+    fn consume_select_predicate(&mut self) -> Result<SelectPredicate, ParseError> {
+        let column = self.consume_identifier()?;
+        let operator = self.consume_comparison_operator()?;
+        let literal = self.consume_literal()?;
+
+        Ok(SelectPredicate::new(column, operator, literal))
+    }
+
+    fn consume_comparison_operator(&mut self) -> Result<ComparisonOperator, ParseError> {
+        let token = self
+            .peek()
+            .cloned()
+            .ok_or(ParseError::ExpectedComparisonOperator { found: None })?;
+
+        let operator = match token.kind() {
+            TokenKind::Equal => ComparisonOperator::Equal,
+            TokenKind::BangEqual => ComparisonOperator::NotEqual,
+            TokenKind::Less => ComparisonOperator::Less,
+            TokenKind::LessEqual => ComparisonOperator::LessEqual,
+            TokenKind::Greater => ComparisonOperator::Greater,
+            TokenKind::GreaterEqual => ComparisonOperator::GreaterEqual,
+            _ => {
+                return Err(ParseError::ExpectedComparisonOperator { found: Some(token) });
+            }
+        };
+
+        self.advance();
+        Ok(operator)
+    }
+
+    fn consume_select_order(&mut self) -> Result<SelectOrder, ParseError> {
+        let column = self.consume_identifier()?;
+        let direction = if self.match_keyword("desc") {
+            SortDirection::Desc
+        } else {
+            self.match_keyword("asc");
+            SortDirection::Asc
+        };
+
+        Ok(SelectOrder::new(column, direction))
     }
 
     fn consume_limit(&mut self) -> Result<usize, ParseError> {
@@ -356,6 +417,8 @@ mod tests {
             Statement::Select {
                 table: String::from("Users"),
                 projection: SelectProjection::All,
+                filter: None,
+                order: None,
                 limit: None,
             }
         );
@@ -374,7 +437,48 @@ mod tests {
                     String::from("name"),
                     String::from("id"),
                 ]),
+                filter: None,
+                order: None,
                 limit: Some(10),
+            }
+        );
+    }
+
+    #[test]
+    fn parses_select_with_where_order_and_limit() {
+        let statement =
+            parse_statement("select name from users where age >= 18 order by name desc limit 10")
+                .expect("parse should work");
+
+        assert_eq!(
+            statement,
+            Statement::Select {
+                table: String::from("users"),
+                projection: SelectProjection::Columns(vec![String::from("name")]),
+                filter: Some(SelectPredicate::new(
+                    "age",
+                    ComparisonOperator::GreaterEqual,
+                    Literal::Integer(18),
+                )),
+                order: Some(SelectOrder::new("name", SortDirection::Desc)),
+                limit: Some(10),
+            }
+        );
+    }
+
+    #[test]
+    fn parses_select_order_by_defaulting_to_ascending() {
+        let statement =
+            parse_statement("select * from users order by name").expect("parse should work");
+
+        assert_eq!(
+            statement,
+            Statement::Select {
+                table: String::from("users"),
+                projection: SelectProjection::All,
+                filter: None,
+                order: Some(SelectOrder::new("name", SortDirection::Asc)),
+                limit: None,
             }
         );
     }
@@ -437,6 +541,16 @@ mod tests {
             Err(ParseError::ExpectedToken {
                 expected: TokenKind::Integer,
                 found: Some(Token::new(TokenKind::Identifier, "nope")),
+            })
+        );
+    }
+
+    #[test]
+    fn select_where_requires_comparison_operator() {
+        assert_eq!(
+            parse_statement("select * from users where id 1"),
+            Err(ParseError::ExpectedComparisonOperator {
+                found: Some(Token::new(TokenKind::Integer, "1")),
             })
         );
     }

@@ -38,6 +38,40 @@ impl<'a> Lexer<'a> {
                     self.advance();
                     tokens.push(Token::new(TokenKind::Comma, ","));
                 }
+                '=' => {
+                    self.advance();
+                    tokens.push(Token::new(TokenKind::Equal, "="));
+                }
+                '!' => {
+                    let position = self.current;
+                    self.advance();
+                    if self.peek() != Some('=') {
+                        return Err(LexError::UnexpectedCharacter {
+                            character,
+                            position,
+                        });
+                    }
+                    self.advance();
+                    tokens.push(Token::new(TokenKind::BangEqual, "!="));
+                }
+                '<' => {
+                    self.advance();
+                    if self.peek() == Some('=') {
+                        self.advance();
+                        tokens.push(Token::new(TokenKind::LessEqual, "<="));
+                    } else {
+                        tokens.push(Token::new(TokenKind::Less, "<"));
+                    }
+                }
+                '>' => {
+                    self.advance();
+                    if self.peek() == Some('=') {
+                        self.advance();
+                        tokens.push(Token::new(TokenKind::GreaterEqual, ">="));
+                    } else {
+                        tokens.push(Token::new(TokenKind::Greater, ">"));
+                    }
+                }
                 '*' => {
                     self.advance();
                     tokens.push(Token::new(TokenKind::Asterisk, "*"));
@@ -218,6 +252,35 @@ mod tests {
         assert_eq!(tokens[3].lexeme(), "users");
         assert!(tokens[4].is_keyword("LIMIT"));
         assert_eq!(tokens[5], Token::new(TokenKind::Integer, "10"));
+    }
+
+    #[test]
+    fn lexes_comparison_operators() {
+        let tokens =
+            lex("select * from users where id >= 2 and name != 'Ada'").expect("lex should work");
+
+        assert_eq!(tokens[6], Token::new(TokenKind::GreaterEqual, ">="));
+        assert_eq!(tokens[10], Token::new(TokenKind::BangEqual, "!="));
+        assert_eq!(
+            lex("a = 1").expect("lex should work")[1].kind(),
+            TokenKind::Equal
+        );
+        assert_eq!(
+            lex("a < 1").expect("lex should work")[1].kind(),
+            TokenKind::Less
+        );
+        assert_eq!(
+            lex("a <= 1").expect("lex should work")[1].kind(),
+            TokenKind::LessEqual
+        );
+        assert_eq!(
+            lex("a > 1").expect("lex should work")[1].kind(),
+            TokenKind::Greater
+        );
+        assert_eq!(
+            lex("a >= 1").expect("lex should work")[1].kind(),
+            TokenKind::GreaterEqual
+        );
     }
 
     #[test]

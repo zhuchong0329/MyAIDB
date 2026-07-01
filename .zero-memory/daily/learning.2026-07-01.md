@@ -177,3 +177,36 @@ Related Files: `src/sql/executor.rs`, `src/sql/mod.rs`, `src/lib.rs`
   - 2026-07-01 Loop 10 Scope Alignment Draft
   - Loop 10 End
 - Status: new
+
+## DL-20260701-070422.000Z-select-where-order-limit
+
+- Timestamp: 2026-07-01T07:04:22Z
+- Source Slug: myaidb-sql-database-loops
+- Source Context: `.zero-memory/context/myaidb-sql-database-loops/context.md`
+- Type: best-practice
+- Pattern-Key: sql.executor.select-owned-results
+- Summary: MyAIDB Loop 11 extends SELECT with WHERE and ORDER BY while preserving the read-only owned-result boundary.
+- Details: Loop 11 added comparison tokens, AST query structures, parser support for `WHERE column op literal` and `ORDER BY column [ASC|DESC]`, and executor support for applying `WHERE`, then `ORDER BY`, then `LIMIT`, then projection. Predicate and ordering column lookup reuse `Schema::column_index` for exact column semantics. Predicate type mismatches surface as `SchemaError::TypeMismatch`; missing filter/order columns surface as `SchemaError::ColumnNotFound`; unsupported null ordering comparisons and vector/blob ordering produce explicit executor errors.
+- Why Reusable: Future query features should extend the SELECT pipeline deliberately instead of bypassing schema lookup or mutating table state. Keeping filter/order before projection makes non-projected ordering/filtering columns work and keeps CLI output as a passive renderer of executor results.
+- Suggested Memory Targets:
+  - sql.executor.select-basic
+  - workspace.project.sql-execution
+- Related Files:
+  - `src/sql/token.rs`
+  - `src/sql/lexer.rs`
+  - `src/sql/ast.rs`
+  - `src/sql/parser.rs`
+  - `src/sql/executor.rs`
+  - `tests/smoke.rs`
+- Related Symbols:
+  - `ComparisonOperator`
+  - `SelectPredicate`
+  - `SelectOrder`
+  - `SortDirection`
+  - `execute_select`
+  - `evaluate_predicate`
+  - `sort_rows`
+- Source Sections:
+  - Loop 11 Start
+  - Loop 11 End
+- Status: new

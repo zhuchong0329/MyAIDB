@@ -1,6 +1,13 @@
-use crate::{Catalog, CatalogError, Column, Row, Schema, SchemaError, TableError, Value};
+use std::cmp::Ordering;
 
-use super::{parse_statement, Literal, ParseError, SelectProjection, Statement};
+use crate::{
+    Catalog, CatalogError, Column, Row, Schema, SchemaError, TableError, Value, ValueType,
+};
+
+use super::{
+    parse_statement, ComparisonOperator, Literal, ParseError, SelectOrder, SelectPredicate,
+    SelectProjection, SortDirection, Statement,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ExecuteResult {
@@ -23,7 +30,18 @@ pub enum ExecuteError {
     Schema(SchemaError),
     Catalog(CatalogError),
     Table(TableError),
-    UnsupportedStatement { statement: &'static str },
+    UnsupportedComparison {
+        column: String,
+        operator: ComparisonOperator,
+        value_type: ValueType,
+    },
+    UnsupportedOrderType {
+        column: String,
+        value_type: ValueType,
+    },
+    UnsupportedStatement {
+        statement: &'static str,
+    },
 }
 
 impl From<ParseError> for ExecuteError {
@@ -85,8 +103,10 @@ fn execute_statement(
         Statement::Select {
             table,
             projection,
+            filter,
+            order,
             limit,
-        } => execute_select(catalog, table, projection, limit),
+        } => execute_select(catalog, table, projection, filter, order, limit),
     }
 }
 
@@ -94,6 +114,8 @@ fn execute_select(
     catalog: &Catalog,
     table: String,
     projection: SelectProjection,
+    filter: Option<SelectPredicate>,
+    order: Option<SelectOrder>,
     limit: Option<usize>,
 ) -> Result<ExecuteResult, ExecuteError> {
     let table = catalog.table(&table)?;
@@ -114,14 +136,149 @@ fn execute_select(
                 .clone()
         })
         .collect::<Vec<_>>();
-    let rows = table
-        .rows()
+
+    let mut rows = Vec::new();
+    for row in table.rows() {
+        if let Some(predicate) = filter.as_ref() {
+            if !evaluate_predicate(row, schema, predicate)? {
+                continue;
+            }
+        }
+
+        rows.push(row);
+    }
+
+    if let Some(order) = order.as_ref() {
+        sort_rows(&mut rows, schema, order)?;
+    }
+
+    let rows = rows
         .iter()
         .take(limit.unwrap_or(usize::MAX))
         .map(|row| project_row(row, &indices))
         .collect::<Vec<_>>();
 
     Ok(ExecuteResult::Select { columns, rows })
+}
+
+fn evaluate_predicate(
+    row: &Row,
+    schema: &Schema,
+    predicate: &SelectPredicate,
+) -> Result<bool, ExecuteError> {
+    let column_index = schema.column_index(predicate.column())?;
+    let column = schema
+        .column(column_index)
+        .expect("predicate index should come from schema");
+    let value = row
+        .get(column_index)
+        .expect("predicate index should be valid for row");
+    let literal = literal_to_value(predicate.literal().clone());
+
+    if value.value_type() != literal.value_type() {
+        return Err(ExecuteError::Schema(SchemaError::TypeMismatch {
+            column_index,
+            column_name: column.name().to_string(),
+            expected: column.value_type(),
+            actual: literal.value_type(),
+        }));
+    }
+
+    compare_values(value, predicate.operator(), &literal, column.name())
+}
+
+fn compare_values(
+    left: &Value,
+    operator: ComparisonOperator,
+    right: &Value,
+    column: &str,
+) -> Result<bool, ExecuteError> {
+    match (left, right) {
+        (Value::Null, Value::Null) => match operator {
+            ComparisonOperator::Equal => Ok(true),
+            ComparisonOperator::NotEqual => Ok(false),
+            _ => Err(ExecuteError::UnsupportedComparison {
+                column: column.to_string(),
+                operator,
+                value_type: ValueType::Null,
+            }),
+        },
+        (Value::Integer(left), Value::Integer(right)) => {
+            Ok(compare_ordering(left.cmp(right), operator))
+        }
+        (Value::Real(left), Value::Real(right)) => Ok(compare_ordering(
+            left.partial_cmp(right).unwrap_or(Ordering::Equal),
+            operator,
+        )),
+        (Value::Text(left), Value::Text(right)) => Ok(compare_ordering(left.cmp(right), operator)),
+        _ => Err(ExecuteError::UnsupportedComparison {
+            column: column.to_string(),
+            operator,
+            value_type: left.value_type(),
+        }),
+    }
+}
+
+fn compare_ordering(ordering: Ordering, operator: ComparisonOperator) -> bool {
+    match operator {
+        ComparisonOperator::Equal => ordering == Ordering::Equal,
+        ComparisonOperator::NotEqual => ordering != Ordering::Equal,
+        ComparisonOperator::Less => ordering == Ordering::Less,
+        ComparisonOperator::LessEqual => matches!(ordering, Ordering::Less | Ordering::Equal),
+        ComparisonOperator::Greater => ordering == Ordering::Greater,
+        ComparisonOperator::GreaterEqual => matches!(ordering, Ordering::Greater | Ordering::Equal),
+    }
+}
+
+fn sort_rows(
+    rows: &mut Vec<&Row>,
+    schema: &Schema,
+    order: &SelectOrder,
+) -> Result<(), ExecuteError> {
+    let column_index = schema.column_index(order.column())?;
+    let column = schema
+        .column(column_index)
+        .expect("order index should come from schema");
+
+    if matches!(column.value_type(), ValueType::Blob | ValueType::Vector) {
+        return Err(ExecuteError::UnsupportedOrderType {
+            column: column.name().to_string(),
+            value_type: column.value_type(),
+        });
+    }
+
+    rows.sort_by(|left, right| {
+        let ordering = order_values(
+            left.get(column_index)
+                .expect("order index should be valid for row"),
+            right
+                .get(column_index)
+                .expect("order index should be valid for row"),
+        )
+        .expect("order type should have been checked");
+
+        match order.direction() {
+            SortDirection::Asc => ordering,
+            SortDirection::Desc => ordering.reverse(),
+        }
+    });
+
+    Ok(())
+}
+
+fn order_values(left: &Value, right: &Value) -> Result<Ordering, ExecuteError> {
+    match (left, right) {
+        (Value::Null, Value::Null) => Ok(Ordering::Equal),
+        (Value::Integer(left), Value::Integer(right)) => Ok(left.cmp(right)),
+        (Value::Real(left), Value::Real(right)) => {
+            Ok(left.partial_cmp(right).unwrap_or(Ordering::Equal))
+        }
+        (Value::Text(left), Value::Text(right)) => Ok(left.cmp(right)),
+        _ => Err(ExecuteError::UnsupportedOrderType {
+            column: String::new(),
+            value_type: left.value_type(),
+        }),
+    }
 }
 
 fn project_row(row: &Row, indices: &[usize]) -> Row {
@@ -524,6 +681,104 @@ mod tests {
     }
 
     #[test]
+    fn execute_select_where_filters_rows_before_projection() {
+        let mut catalog = Catalog::new();
+
+        execute_sql(
+            &mut catalog,
+            "create table users (id integer, name text, age integer)",
+        )
+        .expect("create should work");
+        execute_sql(&mut catalog, "insert into users values (1, 'Ada', 37)")
+            .expect("insert should work");
+        execute_sql(&mut catalog, "insert into users values (2, 'Grace', 17)")
+            .expect("insert should work");
+        execute_sql(&mut catalog, "insert into users values (3, 'Linus', 18)")
+            .expect("insert should work");
+
+        assert_eq!(
+            execute_sql(&mut catalog, "select name from users where age >= 18"),
+            Ok(ExecuteResult::Select {
+                columns: vec![Column::new("name", ValueType::Text)],
+                rows: vec![
+                    Row::new(vec![Value::text("Ada")]),
+                    Row::new(vec![Value::text("Linus")]),
+                ],
+            })
+        );
+    }
+
+    #[test]
+    fn execute_select_supports_text_predicates() {
+        let mut catalog = Catalog::new();
+        create_users_with_rows(&mut catalog);
+
+        assert_eq!(
+            execute_sql(&mut catalog, "select id from users where name != 'Ada'"),
+            Ok(ExecuteResult::Select {
+                columns: vec![Column::new("id", ValueType::Integer)],
+                rows: vec![Row::new(vec![Value::integer(2)])],
+            })
+        );
+    }
+
+    #[test]
+    fn execute_select_orders_rows_before_limit_and_projection() {
+        let mut catalog = Catalog::new();
+
+        execute_sql(&mut catalog, "create table users (id integer, name text)")
+            .expect("create should work");
+        execute_sql(&mut catalog, "insert into users values (1, 'Ada')")
+            .expect("insert should work");
+        execute_sql(&mut catalog, "insert into users values (2, 'Grace')")
+            .expect("insert should work");
+        execute_sql(&mut catalog, "insert into users values (3, 'Alan')")
+            .expect("insert should work");
+
+        assert_eq!(
+            execute_sql(
+                &mut catalog,
+                "select name from users order by name desc limit 2"
+            ),
+            Ok(ExecuteResult::Select {
+                columns: vec![Column::new("name", ValueType::Text)],
+                rows: vec![
+                    Row::new(vec![Value::text("Grace")]),
+                    Row::new(vec![Value::text("Alan")]),
+                ],
+            })
+        );
+    }
+
+    #[test]
+    fn execute_select_combines_where_order_limit_and_projection() {
+        let mut catalog = Catalog::new();
+
+        execute_sql(
+            &mut catalog,
+            "create table users (id integer, name text, age integer)",
+        )
+        .expect("create should work");
+        execute_sql(&mut catalog, "insert into users values (1, 'Ada', 37)")
+            .expect("insert should work");
+        execute_sql(&mut catalog, "insert into users values (2, 'Grace', 17)")
+            .expect("insert should work");
+        execute_sql(&mut catalog, "insert into users values (3, 'Linus', 18)")
+            .expect("insert should work");
+
+        assert_eq!(
+            execute_sql(
+                &mut catalog,
+                "select name from users where age >= 18 order by id desc limit 1",
+            ),
+            Ok(ExecuteResult::Select {
+                columns: vec![Column::new("name", ValueType::Text)],
+                rows: vec![Row::new(vec![Value::text("Linus")])],
+            })
+        );
+    }
+
+    #[test]
     fn execute_select_missing_table_surfaces_catalog_error() {
         let mut catalog = Catalog::new();
 
@@ -545,6 +800,82 @@ mod tests {
             Err(ExecuteError::Schema(SchemaError::ColumnNotFound {
                 name: String::from("email"),
             }))
+        );
+    }
+
+    #[test]
+    fn execute_select_missing_where_column_surfaces_schema_error() {
+        let mut catalog = Catalog::new();
+        create_users_with_rows(&mut catalog);
+
+        assert_eq!(
+            execute_sql(&mut catalog, "select * from users where age = 18"),
+            Err(ExecuteError::Schema(SchemaError::ColumnNotFound {
+                name: String::from("age"),
+            }))
+        );
+    }
+
+    #[test]
+    fn execute_select_missing_order_column_surfaces_schema_error() {
+        let mut catalog = Catalog::new();
+        create_users_with_rows(&mut catalog);
+
+        assert_eq!(
+            execute_sql(&mut catalog, "select * from users order by age"),
+            Err(ExecuteError::Schema(SchemaError::ColumnNotFound {
+                name: String::from("age"),
+            }))
+        );
+    }
+
+    #[test]
+    fn execute_select_where_type_mismatch_surfaces_schema_error() {
+        let mut catalog = Catalog::new();
+        create_users_with_rows(&mut catalog);
+
+        assert_eq!(
+            execute_sql(&mut catalog, "select * from users where id = 'Ada'"),
+            Err(ExecuteError::Schema(SchemaError::TypeMismatch {
+                column_index: 0,
+                column_name: String::from("id"),
+                expected: ValueType::Integer,
+                actual: ValueType::Text,
+            }))
+        );
+    }
+
+    #[test]
+    fn execute_select_rejects_unsupported_null_ordering_comparison() {
+        let mut catalog = Catalog::new();
+
+        execute_sql(&mut catalog, "create table events (deleted_at null)")
+            .expect("create should work");
+        execute_sql(&mut catalog, "insert into events values (null)").expect("insert should work");
+
+        assert_eq!(
+            execute_sql(&mut catalog, "select * from events where deleted_at > null"),
+            Err(ExecuteError::UnsupportedComparison {
+                column: String::from("deleted_at"),
+                operator: ComparisonOperator::Greater,
+                value_type: ValueType::Null,
+            })
+        );
+    }
+
+    #[test]
+    fn execute_select_rejects_ordering_blob_or_vector_columns() {
+        let mut catalog = Catalog::new();
+
+        execute_sql(&mut catalog, "create table documents (embedding vector)")
+            .expect("create should work");
+
+        assert_eq!(
+            execute_sql(&mut catalog, "select * from documents order by embedding"),
+            Err(ExecuteError::UnsupportedOrderType {
+                column: String::from("embedding"),
+                value_type: ValueType::Vector,
+            })
         );
     }
 

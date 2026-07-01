@@ -13,6 +13,8 @@ pub enum Statement {
     Select {
         table: String,
         projection: SelectProjection,
+        filter: Option<SelectPredicate>,
+        order: Option<SelectOrder>,
         limit: Option<usize>,
     },
 }
@@ -37,6 +39,35 @@ pub enum SelectProjection {
     Columns(Vec<String>),
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct SelectPredicate {
+    column: String,
+    operator: ComparisonOperator,
+    literal: Literal,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ComparisonOperator {
+    Equal,
+    NotEqual,
+    Less,
+    LessEqual,
+    Greater,
+    GreaterEqual,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SelectOrder {
+    column: String,
+    direction: SortDirection,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SortDirection {
+    Asc,
+    Desc,
+}
+
 impl ColumnDef {
     pub fn new(name: impl Into<String>, value_type: ValueType) -> Self {
         Self {
@@ -51,5 +82,44 @@ impl ColumnDef {
 
     pub fn value_type(&self) -> ValueType {
         self.value_type
+    }
+}
+
+impl SelectPredicate {
+    pub fn new(column: impl Into<String>, operator: ComparisonOperator, literal: Literal) -> Self {
+        Self {
+            column: column.into(),
+            operator,
+            literal,
+        }
+    }
+
+    pub fn column(&self) -> &str {
+        self.column.as_str()
+    }
+
+    pub fn operator(&self) -> ComparisonOperator {
+        self.operator
+    }
+
+    pub fn literal(&self) -> &Literal {
+        &self.literal
+    }
+}
+
+impl SelectOrder {
+    pub fn new(column: impl Into<String>, direction: SortDirection) -> Self {
+        Self {
+            column: column.into(),
+            direction,
+        }
+    }
+
+    pub fn column(&self) -> &str {
+        self.column.as_str()
+    }
+
+    pub fn direction(&self) -> SortDirection {
+        self.direction
     }
 }
