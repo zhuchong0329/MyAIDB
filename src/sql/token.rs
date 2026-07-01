@@ -10,6 +10,7 @@ pub enum TokenKind {
     Integer,
     Real,
     String,
+    Asterisk,
     Comma,
     LeftParen,
     RightParen,

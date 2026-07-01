@@ -1,0 +1,17 @@
+# Registry of stable memory IDs, slugs, and workspace-relative canonical package paths.
+memories:
+  - id: sql.executor.insert-execution
+    slug: sql-executor-insert-execution
+    path: .zero-memory/memory/sql-executor-insert-execution/MEMORY.md
+  - id: sql.executor.select-basic
+    slug: sql-executor-select-basic
+    path: .zero-memory/memory/sql-executor-select-basic/MEMORY.md
+  - id: tooling.bootstrap.rust-toolchain
+    slug: tooling-bootstrap-rust-toolchain
+    path: .zero-memory/memory/tooling-bootstrap-rust-toolchain/MEMORY.md
+  - id: workspace.project.sql-execution
+    slug: workspace-project-sql-execution
+    path: .zero-memory/memory/workspace-project-sql-execution/MEMORY.md
+  - id: workspace.project.tooling
+    slug: workspace-project-tooling
+    path: .zero-memory/memory/workspace-project-tooling/MEMORY.md

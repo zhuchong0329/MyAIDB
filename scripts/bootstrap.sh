@@ -3,6 +3,13 @@ set -euo pipefail
 
 echo "==> MyAIDB environment bootstrap (macOS/Linux)"
 
+TOOLCHAIN_CHANNEL="$(sed -n 's/^[[:space:]]*channel[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' rust-toolchain.toml | head -n 1)"
+
+if [ -z "$TOOLCHAIN_CHANNEL" ]; then
+  echo "Could not read the Rust toolchain channel from rust-toolchain.toml."
+  exit 1
+fi
+
 case "$(uname -s)" in
   Darwin)
     if ! xcode-select -p >/dev/null 2>&1; then
@@ -22,6 +29,11 @@ case "$(uname -s)" in
     ;;
 esac
 
+if ! command -v rustup >/dev/null 2>&1 && [ -f "$HOME/.cargo/env" ]; then
+  # shellcheck disable=SC1090
+  source "$HOME/.cargo/env"
+fi
+
 if ! command -v rustup >/dev/null 2>&1; then
   echo "==> rustup not found; installing Rustup"
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
@@ -35,9 +47,9 @@ if ! command -v rustup >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "==> Installing or updating the pinned Rust toolchain"
-rustup toolchain install stable --component rustfmt --component clippy
-rustup component add rustfmt clippy --toolchain stable
+echo "==> Installing or updating Rust toolchain: $TOOLCHAIN_CHANNEL"
+rustup toolchain install "$TOOLCHAIN_CHANNEL" --component rustfmt --component clippy
+rustup component add rustfmt clippy --toolchain "$TOOLCHAIN_CHANNEL"
 
 echo "==> Active versions"
 rustc --version

@@ -1,7 +1,7 @@
 use crate::ValueType;
 
 use super::lexer::LexError;
-use super::{lex, ColumnDef, Literal, Statement, Token, TokenKind};
+use super::{lex, ColumnDef, Literal, SelectProjection, Statement, Token, TokenKind};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParseError {
@@ -60,9 +60,11 @@ impl Parser {
             self.parse_create_table()?
         } else if self.check_keyword("insert") {
             self.parse_insert()?
+        } else if self.check_keyword("select") {
+            self.parse_select()?
         } else {
             return Err(ParseError::ExpectedKeyword {
-                expected: "CREATE or INSERT",
+                expected: "CREATE, INSERT, or SELECT",
                 found: self.peek().cloned(),
             });
         };
@@ -121,6 +123,61 @@ impl Parser {
         self.consume_kind(TokenKind::RightParen)?;
 
         Ok(Statement::Insert { table, values })
+    }
+
+    fn parse_select(&mut self) -> Result<Statement, ParseError> {
+        self.consume_keyword("select")?;
+        let projection = self.consume_select_projection()?;
+        self.consume_keyword("from")?;
+        let table = self.consume_identifier()?;
+        let limit = if self.match_keyword("limit") {
+            Some(self.consume_limit()?)
+        } else {
+            None
+        };
+
+        Ok(Statement::Select {
+            table,
+            projection,
+            limit,
+        })
+    }
+
+    fn consume_select_projection(&mut self) -> Result<SelectProjection, ParseError> {
+        if self.match_kind(TokenKind::Asterisk) {
+            return Ok(SelectProjection::All);
+        }
+
+        let mut columns = vec![self.consume_identifier()?];
+
+        while self.match_kind(TokenKind::Comma) {
+            columns.push(self.consume_identifier()?);
+        }
+
+        Ok(SelectProjection::Columns(columns))
+    }
+
+    fn consume_limit(&mut self) -> Result<usize, ParseError> {
+        let token = self.peek().cloned().ok_or(ParseError::ExpectedToken {
+            expected: TokenKind::Integer,
+            found: None,
+        })?;
+
+        if token.kind() != TokenKind::Integer {
+            return Err(ParseError::ExpectedToken {
+                expected: TokenKind::Integer,
+                found: Some(token),
+            });
+        }
+
+        let limit = token
+            .lexeme()
+            .parse::<usize>()
+            .map_err(|_| ParseError::InvalidInteger {
+                lexeme: token.lexeme().to_string(),
+            })?;
+        self.advance();
+        Ok(limit)
     }
 
     fn consume_type(&mut self) -> Result<ValueType, ParseError> {
@@ -224,6 +281,15 @@ impl Parser {
         }
     }
 
+    fn match_keyword(&mut self, keyword: &str) -> bool {
+        if self.check_keyword(keyword) {
+            self.advance();
+            true
+        } else {
+            false
+        }
+    }
+
     fn check_kind(&self, kind: TokenKind) -> bool {
         self.peek().is_some_and(|token| token.kind() == kind)
     }
@@ -282,6 +348,38 @@ mod tests {
     }
 
     #[test]
+    fn parses_select_all_statement() {
+        let statement = parse_statement("select * from Users").expect("parse should work");
+
+        assert_eq!(
+            statement,
+            Statement::Select {
+                table: String::from("Users"),
+                projection: SelectProjection::All,
+                limit: None,
+            }
+        );
+    }
+
+    #[test]
+    fn parses_select_projection_with_limit() {
+        let statement =
+            parse_statement("select name, id from users limit 10").expect("parse should work");
+
+        assert_eq!(
+            statement,
+            Statement::Select {
+                table: String::from("users"),
+                projection: SelectProjection::Columns(vec![
+                    String::from("name"),
+                    String::from("id"),
+                ]),
+                limit: Some(10),
+            }
+        );
+    }
+
+    #[test]
     fn parses_all_supported_create_table_types() {
         let statement = parse_statement(
             "create table values_table (a null, b integer, c real, d text, e blob, f vector)",
@@ -333,13 +431,13 @@ mod tests {
     }
 
     #[test]
-    fn rejects_select_in_this_loop() {
+    fn select_limit_requires_integer() {
         assert_eq!(
-            parse_statement("select * from users"),
-            Err(ParseError::Lex(LexError::UnexpectedCharacter {
-                character: '*',
-                position: 7,
-            }))
+            parse_statement("select * from users limit nope"),
+            Err(ParseError::ExpectedToken {
+                expected: TokenKind::Integer,
+                found: Some(Token::new(TokenKind::Identifier, "nope")),
+            })
         );
     }
 

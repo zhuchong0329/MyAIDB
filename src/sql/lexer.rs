@@ -38,6 +38,10 @@ impl<'a> Lexer<'a> {
                     self.advance();
                     tokens.push(Token::new(TokenKind::Comma, ","));
                 }
+                '*' => {
+                    self.advance();
+                    tokens.push(Token::new(TokenKind::Asterisk, "*"));
+                }
                 '(' => {
                     self.advance();
                     tokens.push(Token::new(TokenKind::LeftParen, "("));
@@ -205,11 +209,23 @@ mod tests {
     }
 
     #[test]
+    fn lexes_select_asterisk() {
+        let tokens = lex("select * from users limit 10").expect("lex should work");
+
+        assert!(tokens[0].is_keyword("SELECT"));
+        assert_eq!(tokens[1], Token::new(TokenKind::Asterisk, "*"));
+        assert!(tokens[2].is_keyword("FROM"));
+        assert_eq!(tokens[3].lexeme(), "users");
+        assert!(tokens[4].is_keyword("LIMIT"));
+        assert_eq!(tokens[5], Token::new(TokenKind::Integer, "10"));
+    }
+
+    #[test]
     fn rejects_unexpected_characters() {
         assert_eq!(
-            lex("select *"),
+            lex("select @"),
             Err(LexError::UnexpectedCharacter {
-                character: '*',
+                character: '@',
                 position: 7,
             })
         );

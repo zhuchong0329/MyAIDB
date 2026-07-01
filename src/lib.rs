@@ -6,7 +6,7 @@ pub use core::{
 };
 pub use sql::{
     execute_sql, parse_statement, ColumnDef, ExecuteError, ExecuteResult, LexError, Literal,
-    ParseError, Statement, Token, TokenKind,
+    ParseError, SelectProjection, Statement, Token, TokenKind,
 };
 
 pub const PROJECT_NAME: &str = "MyAIDB";

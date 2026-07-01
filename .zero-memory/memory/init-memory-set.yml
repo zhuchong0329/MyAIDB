@@ -1,0 +1,5 @@
+# Entry-point memory IDs for layered discovery.
+# Keep this set intentionally small and route to deeper knowledge via load_next.
+init_memory_set:
+  - workspace.project.sql-execution
+  - workspace.project.tooling

@@ -10,6 +10,11 @@ pub enum Statement {
         table: String,
         values: Vec<Literal>,
     },
+    Select {
+        table: String,
+        projection: SelectProjection,
+        limit: Option<usize>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -24,6 +29,12 @@ pub enum Literal {
     Integer(i64),
     Real(f64),
     Text(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SelectProjection {
+    All,
+    Columns(Vec<String>),
 }
 
 impl ColumnDef {

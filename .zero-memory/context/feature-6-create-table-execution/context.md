@@ -3,118 +3,75 @@ name: feature-6-create-table-execution
 description: Feature 6 loop for executing CREATE TABLE SQL against the in-memory Catalog.
 ---
 
-# Feature 6: CREATE TABLE SQL Execution
+## Current Summary
 
-## Loop Start
+- Loop 6 completed `CREATE TABLE` SQL execution through `execute_sql`, `Schema::new`, and `Catalog::create_table`.
+- Loop 7 completed `INSERT INTO table VALUES (...)` execution through `Catalog::table_mut`, `literal_to_value`, `Row::new`, and `Table::insert`; validation and mutation remain delegated to core table/schema logic.
+- Local macOS bootstrap was repaired earlier: `scripts/bootstrap.sh` is executable, reads `rust-toolchain.toml`, and can source `$HOME/.cargo/env`.
+- Active task: Loop 8 implementation.
 
-Feature: Execute `CREATE TABLE` SQL against in-memory `Catalog`.
+## Loop 8 Start
 
-Goal: Connect the Loop 5 SQL AST to the core storage model for the smallest useful execution path.
+Feature: Basic `SELECT` query execution.
+
+Goal: Implement the first read/query path end-to-end across lexer, AST, parser, executor, and result model.
 
 Scope:
 
-- Add a SQL execution entry point.
-- Parse SQL text by reusing `parse_statement`.
-- Support `Statement::CreateTable`.
-- Convert parsed `ColumnDef` values into core `Column` values.
-- Build a core `Schema`.
-- Create a core `Table` through `Catalog`.
-- Return a small execution result for successful table creation.
-- Expose a unified execution error type.
-- Explicitly reject `INSERT` as unsupported in this loop.
-- Add unit tests for successful create-table execution and failure boundaries.
+- Support `SELECT * FROM table`.
+- Support `SELECT col1, col2 FROM table`.
+- Support optional `LIMIT <integer>`.
+- Return owned selected columns and rows, likely `ExecuteResult::Select { columns: Vec<Column>, rows: Vec<Row> }`.
+- Execute reads through `Catalog::table` without mutating catalog/table state.
+- Preserve exact table and column name matching.
+- Surface missing table as `ExecuteError::Catalog` and missing column as `ExecuteError::Schema`.
+- Preserve insertion order and truncate with `LIMIT`.
 
 Out of Scope:
 
-- Do not execute `INSERT`.
-- Do not convert SQL `Literal` values into runtime `Value`.
-- Do not implement `SELECT`.
-- Do not implement binder/planner trees.
-- Do not implement SQL shell or CLI execution.
-- Do not implement multi-statement execution.
-- Do not implement transactions.
-- Do not implement autoEmbed.
-- Do not change identifier normalization rules.
+- `WHERE`, `ORDER BY`, joins, aggregates, expressions, aliases, `SELECT` literals, qualified names, quoted identifiers, wildcard mixed with explicit columns, negative limits, bind parameters, planner/binder trees, transactions, autoEmbed/vector search, and CLI/shell output formatting.
 
-Design:
+## Next Step
 
-- `execute_sql(catalog: &mut Catalog, sql: &str)` is the public entry point for this loop.
-- Execution is still intentionally tiny: parse first, then dispatch the supported AST variant.
-- `CREATE TABLE` execution maps directly from SQL AST to `Catalog::create_table`.
-- `ExecuteResult` records what action happened without exposing internal mutable references.
-- `ExecuteError` wraps parser, schema, and catalog errors so callers can handle execution through one result type.
-- `INSERT` returns an explicit unsupported-statement error instead of being ignored.
+- Implement Loop 8 in `src/sql/token.rs`, `src/sql/lexer.rs`, `src/sql/ast.rs`, `src/sql/parser.rs`, and `src/sql/executor.rs`, then run format/tests/clippy.
 
-Verification:
-
-- `%USERPROFILE%\.cargo\bin\cargo.exe fmt --check`
-- `%USERPROFILE%\.cargo\bin\cargo.exe test`
-- `%USERPROFILE%\.cargo\bin\cargo.exe clippy --all-targets --all-features -- -D warnings`
-
-Expected Artifacts:
-
-- `src/sql/executor.rs`
-- Updated `src/sql/mod.rs`
-- Updated `src/lib.rs`
-- SQL executor unit tests
-- Updated `.zero-memory/context/feature-6-create-table-execution/context.md`
-
-Done Definition:
-
-- `CREATE TABLE` SQL creates an in-memory table in `Catalog`.
-- Created table schema preserves parsed column names and types.
-- Duplicate table errors surface as `ExecuteError::Catalog`.
-- Duplicate column errors surface as `ExecuteError::Schema`.
-- Syntax errors surface as `ExecuteError::Parse`.
-- `INSERT` surfaces as `ExecuteError::UnsupportedStatement`.
-- Failed execution does not produce partial catalog mutation.
-- Format, tests, and Clippy all pass.
-- Loop result and reusable learning are persisted to `.zero-memory`.
-
-## Current Status
-
-- Loop start persisted before implementation.
-- Loop completed.
-
-## Loop End
+## Loop 8 End
 
 Completed:
 
-- Added `src/sql/executor.rs`.
-- Added public `execute_sql(catalog: &mut Catalog, sql: &str)` entry point.
-- Added `ExecuteResult` with `CreateTable { table }`.
-- Added unified `ExecuteError` wrapping `ParseError`, `SchemaError`, and `CatalogError`.
-- Implemented `CREATE TABLE` execution through `parse_statement`, `Column`, `Schema`, and `Catalog::create_table`.
-- Explicitly rejects `INSERT` with `ExecuteError::UnsupportedStatement`.
-- Exported executor API from `src/sql/mod.rs` and `src/lib.rs`.
-- Added unit tests for successful table creation, exact name preservation, duplicate tables, duplicate columns, syntax errors, lexer errors, and unsupported `INSERT`.
-
-Out-of-scope items intentionally not implemented:
-
-- `INSERT` execution.
-- SQL `Literal` to runtime `Value` conversion.
-- `SELECT`.
-- Binder/planner trees.
-- SQL shell or CLI execution.
-- Multi-statement execution.
-- Transactions.
-- autoEmbed.
-- Identifier normalization changes.
+- Added `TokenKind::Asterisk` and lexer support for `*`.
+- Added `SelectProjection` and `Statement::Select { table, projection, limit }`.
+- Extended parser support for `SELECT * FROM table`, `SELECT col1, col2 FROM table`, and optional `LIMIT <integer>`.
+- Exported `SelectProjection` from `src/sql/mod.rs` and `src/lib.rs`.
+- Added `ExecuteResult::Select { columns: Vec<Column>, rows: Vec<Row> }` using owned result data.
+- Implemented read-only SELECT execution through `Catalog::table`.
+- Implemented full-row selection, requested-order column projection, exact column matching via `Schema::column_index`, and insertion-order LIMIT truncation.
+- Added tests for lexer/parser SELECT support, full SELECT execution, projection ordering, LIMIT, missing table, missing column, exact names, and no mutation.
 
 Verification Results:
 
-- `%USERPROFILE%\.cargo\bin\cargo.exe fmt --check` passed.
-- `%USERPROFILE%\.cargo\bin\cargo.exe test` passed: 50 tests passed.
-- `%USERPROFILE%\.cargo\bin\cargo.exe clippy --all-targets --all-features -- -D warnings` passed.
-
-Failure Notes:
-
-- No code failures occurred during implementation after the loop was resumed.
+- `cargo build` passed.
+- `cargo fmt --check` passed.
+- `cargo test` passed: 64 library tests and 2 smoke tests passed.
+- `cargo clippy --all-targets --all-features -- -D warnings` passed.
+- `git diff --check` passed.
 
 Reusable Learning:
 
-- Logged as `DL-20260701-005000.000Z-create-table-execution-before-insert`.
+- Logged as `DL-20260701-033112.000Z-select-basic-owned-results`.
+- Promoted into memory node `sql.executor.select-basic` and linked from `workspace.project.sql-execution`.
 
 Next Loop Candidate:
 
-- Feature 7 should likely implement `INSERT` execution by converting SQL `Literal` values into runtime `Value` values against the target table schema, while preserving validate-before-mutate behavior.
+- Feature 9 can expand query semantics with either `WHERE` filtering or `ORDER BY`/`LIMIT` refinement. Prefer one coherent query semantics slice while preserving the owned result model and read-only SELECT boundary.
+
+## 2026-07-01 Loop 8 User-Facing Explanation
+
+- User asked for an explanation of Loop 8's main changes, principle, and implementation thinking.
+- Explanation focus: Loop 8 is the first read/query path, spanning lexer `*`, AST `Statement::Select`, parser support for `SELECT *`, explicit projection, and optional `LIMIT`, plus executor support that reads through `Catalog::table` and returns owned `ExecuteResult::Select { columns, rows }`.
+- Key design rationale: keep SELECT read-only, reuse `Schema::column_index` for exact projection semantics, preserve insertion order, avoid borrowing result data from `Catalog`, and defer WHERE/ORDER BY/expressions/planner work.
+
+## References
+
+- `references/history.md` - Progress, completion, and resume chronology preserved from the larger context.
+- `references/snapshots/context-20260701T032701Z.md` - Progress, completion, and resume chronology preserved from the larger context.

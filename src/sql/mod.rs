@@ -4,7 +4,7 @@ mod lexer;
 mod parser;
 mod token;
 
-pub use ast::{ColumnDef, Literal, Statement};
+pub use ast::{ColumnDef, Literal, SelectProjection, Statement};
 pub use executor::{execute_sql, ExecuteError, ExecuteResult};
 pub use lexer::{lex, LexError};
 pub use parser::{parse_statement, ParseError};
