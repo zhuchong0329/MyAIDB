@@ -1,3 +1,4 @@
+use std::io::IsTerminal;
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
@@ -32,7 +33,13 @@ fn run_repl() -> ExitCode {
     let stdin = std::io::stdin();
     let mut stdout = std::io::stdout();
 
-    match myaidb::cli::run_repl(stdin.lock(), &mut stdout) {
+    let result = if stdin.is_terminal() && stdout.is_terminal() {
+        myaidb::cli::run_interactive_repl(&mut stdout)
+    } else {
+        myaidb::cli::run_repl(stdin.lock(), &mut stdout)
+    };
+
+    match result {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             eprintln!("io error: {error}");

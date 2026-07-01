@@ -1,5 +1,8 @@
 use std::io::{self, BufRead, Write};
 
+use rustyline::error::ReadlineError;
+use rustyline::DefaultEditor;
+
 use crate::{execute_sql, Catalog, Column, ExecuteError, ExecuteResult, Row, Value};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -60,6 +63,65 @@ where
     }
 
     Ok(())
+}
+
+pub fn run_interactive_repl<W>(writer: &mut W) -> io::Result<()>
+where
+    W: Write,
+{
+    let mut catalog = Catalog::new();
+    let mut editor = DefaultEditor::new().map_err(to_io_error)?;
+    let mut pending = String::new();
+
+    writeln!(writer, "{}", crate::project_identity())?;
+    writeln!(writer, "type .help for help, .quit to exit")?;
+
+    loop {
+        let prompt = if pending.is_empty() {
+            "myaidb> "
+        } else {
+            "   ...> "
+        };
+        let line = match editor.readline(prompt) {
+            Ok(line) => line,
+            Err(ReadlineError::Interrupted | ReadlineError::Eof) => {
+                writeln!(writer, "bye")?;
+                break;
+            }
+            Err(error) => return Err(to_io_error(error)),
+        };
+        let trimmed = line.trim();
+
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        if !pending.is_empty() {
+            pending.push(' ');
+        }
+        pending.push_str(trimmed);
+
+        if !is_complete_command(&pending) {
+            continue;
+        }
+
+        let completed_command = pending.trim().to_string();
+        let flow = process_command(&mut catalog, &completed_command, writer)?;
+        if flow == CommandFlow::Continue {
+            let _ = editor.add_history_entry(completed_command.as_str());
+        }
+        pending.clear();
+
+        if flow == CommandFlow::Quit {
+            break;
+        }
+    }
+
+    Ok(())
+}
+
+fn to_io_error(error: ReadlineError) -> io::Error {
+    io::Error::other(error)
 }
 
 fn is_complete_command(command: &str) -> bool {

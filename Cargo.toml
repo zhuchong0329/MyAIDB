@@ -6,3 +6,4 @@ description = "A learning-oriented SQL database for autoEmbed-style semantic ind
 license = "MIT OR Apache-2.0"
 
 [dependencies]
+rustyline = "14"

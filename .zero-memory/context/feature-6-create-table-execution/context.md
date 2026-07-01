@@ -8,7 +8,7 @@ description: Feature 6 loop for executing CREATE TABLE SQL against the in-memory
 - Loop 6 completed `CREATE TABLE` SQL execution through `execute_sql`, `Schema::new`, and `Catalog::create_table`.
 - Loop 7 completed `INSERT INTO table VALUES (...)` execution through `Catalog::table_mut`, `literal_to_value`, `Row::new`, and `Table::insert`; validation and mutation remain delegated to core table/schema logic.
 - Local macOS bootstrap was repaired earlier: `scripts/bootstrap.sh` is executable, reads `rust-toolchain.toml`, and can source `$HOME/.cargo/env`.
-- Active task: Loop 8 implementation.
+- Active task: Loop 9.5 completed; next response should summarize the line-editing change.
 
 ## Loop 8 Start
 
@@ -30,10 +30,6 @@ Scope:
 Out of Scope:
 
 - `WHERE`, `ORDER BY`, joins, aggregates, expressions, aliases, `SELECT` literals, qualified names, quoted identifiers, wildcard mixed with explicit columns, negative limits, bind parameters, planner/binder trees, transactions, autoEmbed/vector search, and CLI/shell output formatting.
-
-## Next Step
-
-- Implement Loop 8 in `src/sql/token.rs`, `src/sql/lexer.rs`, `src/sql/ast.rs`, `src/sql/parser.rs`, and `src/sql/executor.rs`, then run format/tests/clippy.
 
 ## Loop 8 End
 
@@ -143,6 +139,55 @@ Reusable Learning:
 Next Loop Candidate:
 
 - Feature 10 can improve the interactive CLI ergonomics or expand query semantics. Good candidates: add `.schema`/table schema introspection, add SQL file execution, or add `WHERE` filtering while preserving the CLI/executor boundary.
+
+## 2026-07-01 Loop 9.5 Scope Alignment Draft
+
+- User tried the CLI and found it basically meets expectations, but arrow-key cursor/history control does not work; user asked to define Loop 9.5 scope.
+- Proposed feature: improve REPL line editing ergonomics while preserving the Loop 9 CLI/executor boundary.
+- Current code fact: `src/cli.rs` reads lines through generic `BufRead`, so raw terminal arrow-key escape sequences are not interpreted as cursor movement or history navigation.
+- Proposed in scope: add an interactive terminal line editor for TTY sessions, likely via a small established crate such as `rustyline`; support left/right cursor movement, up/down history navigation, backspace/delete editing, and keeping successful non-empty commands in session history; preserve `.help`, `.quit`, `show tables`, and SQL dispatch behavior.
+- Proposed compatibility requirement: keep the existing `run_repl<R: BufRead, W: Write>` or equivalent non-interactive path for tests and piped stdin workflows, so smoke tests that feed stdin continue to work without requiring a TTY.
+- Proposed CLI shape: `myaidb` and `myaidb repl` use the line editor only when attached to an interactive terminal; piped stdin can keep the current line-based runner.
+- Proposed tests: keep existing non-interactive REPL tests; add unit tests for the extracted command-processing/session logic if refactored; add at least one smoke test proving piped stdin still works; manual verification for actual arrow keys because automated terminal control is not necessary for this loop.
+- Proposed out of scope: persistent history across processes, config files, autocomplete, syntax highlighting, multiline editing beyond current pending-command behavior, mouse support, terminal color styling, SQL semantics changes, and parser/executor changes.
+- Open decision for user: whether to persist command history across sessions. Recommendation: no for Loop 9.5; keep history in memory only.
+
+## Loop 9.5 Start
+
+Feature: REPL line editing with arrow-key control.
+
+Goal: Improve interactive CLI ergonomics by using a terminal line editor for TTY sessions while preserving the existing testable/piped stdin runner.
+
+Scope:
+
+- Add an established line editor dependency, expected `rustyline`.
+- Add an interactive REPL runner that supports left/right cursor movement, up/down in-session history, and normal line editing.
+- Keep existing `run_repl<R: BufRead, W: Write>` path for tests and piped stdin.
+- Route `myaidb` / `myaidb repl` to line-editor mode only when stdin and stdout are terminals; otherwise use the existing line runner.
+- Preserve existing SQL execution, show-tables, help, quit, and output behavior.
+- Keep command history in memory only.
+
+Out of Scope:
+
+- Persistent history, config files, autocomplete, syntax highlighting, terminal styling, SQL semantics changes, and parser/executor changes.
+
+Verification Plan:
+
+- `cargo build`
+- `cargo fmt --check`
+- `cargo test`
+- `cargo clippy --all-targets --all-features -- -D warnings`
+- `git diff --check`
+- Manual note: actual arrow-key behavior requires a real terminal and is not fully covered by non-TTY automated tests.
+
+## Loop 9.5 End
+
+- Added `rustyline` and `run_interactive_repl` for TTY line editing/history.
+- `main.rs` now uses `std::io::IsTerminal`: TTY sessions use rustyline; piped stdin/tests keep `run_repl`.
+- Preserved SQL/show/help/quit behavior and in-memory-only history.
+- Verification passed: `cargo build`, `cargo fmt --check`, `cargo test` (68 library, 3 smoke), `cargo clippy --all-targets --all-features -- -D warnings`, and `git diff --check`.
+- Reusable learning: `DL-20260701-054159.000Z-repl-tty-line-editor`.
+- User requested committing these changes and pushing `main` to `origin`.
 
 ## References
 

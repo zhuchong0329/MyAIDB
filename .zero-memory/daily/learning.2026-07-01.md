@@ -123,3 +123,30 @@ Related Files: `src/sql/executor.rs`, `src/sql/mod.rs`, `src/lib.rs`
   - Loop 9 Start
   - Loop 9 End
 - Status: new
+
+## DL-20260701-054159.000Z-repl-tty-line-editor
+
+- Timestamp: 2026-07-01T05:41:59Z
+- Source Slug: feature-6-create-table-execution
+- Source Context: `.zero-memory/context/feature-6-create-table-execution/context.md`
+- Type: best-practice
+- Pattern-Key: cli.repl.tty-line-editor-split
+- Summary: MyAIDB REPL should use a terminal line editor only for TTY sessions and keep the BufRead runner for tests/piped stdin.
+- Details: Loop 9.5 added `rustyline` for interactive sessions so arrow keys, cursor movement, and in-session history work in a real terminal. `main.rs` uses `std::io::IsTerminal` to choose `run_interactive_repl` only when stdin and stdout are terminals; piped stdin continues to use the generic `run_repl<R: BufRead, W: Write>` path. This preserves smoke tests and shell pipelines while improving manual CLI ergonomics.
+- Why Reusable: Future CLI features should keep input frontend concerns separate from command/session execution so terminal UX improvements do not break non-interactive tests or automation.
+- Suggested Memory Targets:
+  - cli.repl.executor-wrapper
+- Related Files:
+  - `Cargo.toml`
+  - `Cargo.lock`
+  - `src/cli.rs`
+  - `src/main.rs`
+- Related Symbols:
+  - `run_interactive_repl`
+  - `run_repl`
+  - `std::io::IsTerminal`
+  - `rustyline::DefaultEditor`
+- Source Sections:
+  - Loop 9.5 Start
+  - Loop 9.5 End
+- Status: new
