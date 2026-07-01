@@ -188,6 +188,7 @@ Verification Plan:
 - Verification passed: `cargo build`, `cargo fmt --check`, `cargo test` (68 library, 3 smoke), `cargo clippy --all-targets --all-features -- -D warnings`, and `git diff --check`.
 - Reusable learning: `DL-20260701-054159.000Z-repl-tty-line-editor`.
 - User requested committing these changes and pushing `main` to `origin`.
+- Git result: committed `502c8f7 loop 9.5 improve repl line editing` and pushed `main` to `origin` successfully.
 
 ## References
 
