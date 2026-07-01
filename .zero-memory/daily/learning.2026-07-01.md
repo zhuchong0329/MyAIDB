@@ -210,3 +210,30 @@ Related Files: `src/sql/executor.rs`, `src/sql/mod.rs`, `src/lib.rs`
   - Loop 11 Start
   - Loop 11 End
 - Status: new
+
+## DL-20260701-072208.000Z-seeded-dev-repl
+
+- Timestamp: 2026-07-01T07:22:08Z
+- Source Slug: myaidb-sql-database-loops
+- Source Context: `.zero-memory/context/myaidb-sql-database-loops/context.md`
+- Type: best-practice
+- Pattern-Key: cli.repl.wraps-sql-executor
+- Summary: MyAIDB seeded manual testing should load seed SQL into a shared Catalog before entering the normal REPL.
+- Details: A direct shell pipe such as `cat seed.sql - | myaidb` would make stdin non-TTY and lose the rustyline arrow/history editing path. The safer pattern is `myaidb --seed <file>`: load SQL commands into a `Catalog`, then enter `run_repl_with_catalog` or `run_interactive_repl_with_catalog` with that same Catalog. Seed loading should be strict and fail on SQL errors instead of continuing silently.
+- Why Reusable: Future manual testing, demos, and fixture-driven CLI workflows should preserve interactive TTY ergonomics while avoiding repetitive create/insert setup work.
+- Suggested Memory Targets:
+  - cli.repl.executor-wrapper
+- Related Files:
+  - `src/cli.rs`
+  - `src/main.rs`
+  - `scripts/dev_seed_repl.sh`
+  - `tests/smoke.rs`
+- Related Symbols:
+  - `run_repl_with_catalog`
+  - `run_interactive_repl_with_catalog`
+  - `run_seed_script`
+  - `run_seeded_repl`
+- Source Sections:
+  - 2026-07-01 Seeded Dev REPL Start
+  - 2026-07-01 Seeded Dev REPL End
+- Status: new

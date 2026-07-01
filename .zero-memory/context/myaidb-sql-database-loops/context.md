@@ -5,7 +5,7 @@ description: Long-running MyAIDB SQL database implementation loops, including pa
 
 ## Status
 
-- active; Loop 11 implementation complete and verified.
+- active; seeded development REPL task complete and verified.
 
 ## Current Summary
 
@@ -15,7 +15,7 @@ description: Long-running MyAIDB SQL database implementation loops, including pa
 - Loop 9 completed an interactive CLI/REPL for manual create/insert/select/show-tables workflows.
 - Loop 9.5 completed TTY line editing through `rustyline` while preserving the generic `BufRead` runner for piped stdin and tests.
 - Loop 10 completed CLI-only schema introspection with `.schema`, `schema`, and `describe <table>`, reusing `Catalog`, `Table`, and `Schema` APIs without changing SQL parser semantics.
-- Current active task: Loop 11 query semantics expansion completed; next step is summarize, commit, or align Loop 12.
+- Current active task: seeded development REPL script completed; next step is summarize, commit, or continue with the next loop.
 
 ## Loop 11 Scope Draft
 
@@ -50,6 +50,24 @@ description: Long-running MyAIDB SQL database implementation loops, including pa
 - Added lexer/parser/executor tests plus binary smoke coverage for filtered and ordered SELECT through stdin.
 - Verification passed: `cargo fmt`, `cargo test` (85 library tests, 4 smoke tests), `cargo build`, `cargo fmt --check`, `cargo clippy --all-targets --all-features -- -D warnings`, and `git diff --check`.
 - Reusable learning logged as `DL-20260701-070422.000Z-select-where-order-limit` and curated into `sql.executor.select-basic`; memory graph validation passed with only generated-index warnings.
+
+## 2026-07-01 Seeded Dev REPL Start
+
+- User requested a script that starts the process, initializes data, then leaves the user inside the CLI for manual queries/writes.
+- Requirement: seed 5 tables, each with more than 10 rows.
+- Design decision: avoid piping seed SQL directly into the REPL because that would make stdin non-TTY and lose rustyline arrow/history editing. Instead add a CLI seed-file path that executes seed SQL into a shared `Catalog`, then enters the normal interactive REPL with that catalog.
+- Planned artifacts: CLI support for `myaidb --seed <file>`, a `scripts/dev_seed_repl.sh` script that creates a temporary seed SQL file with 5 tables and starts `cargo run -- --seed <file>`, plus smoke/unit coverage.
+
+## 2026-07-01 Seeded Dev REPL End
+
+- Added `run_repl_with_catalog` and `run_interactive_repl_with_catalog` so startup paths can seed a shared in-memory `Catalog` before entering the REPL.
+- Added strict `run_seed_script`, which executes seed SQL without prompt noise and fails startup if any seed command fails.
+- Added `myaidb --seed <file>` in `src/main.rs`; it loads the seed file, reports the number of loaded commands, then enters the normal REPL path with the seeded catalog.
+- Added executable `scripts/dev_seed_repl.sh`. It creates 5 tables (`users`, `products`, `orders`, `documents`, `events`) with 12 rows each, then runs `cargo run -- --seed <temp-seed-file>`.
+- Added smoke coverage for `--seed` loading before stdin-driven REPL queries.
+- Verified `printf '.quit\n' | scripts/dev_seed_repl.sh` starts the seeded CLI and reports `seed data loaded (65 commands)`.
+- Verification passed: `cargo fmt`, `cargo test` (85 library tests, 5 smoke tests), `cargo build`, `cargo fmt --check`, `cargo clippy --all-targets --all-features -- -D warnings`, and `git diff --check`.
+- Reusable learning logged as `DL-20260701-072208.000Z-seeded-dev-repl` and curated into `cli.repl.executor-wrapper`; memory graph validation passed with only generated-index warnings.
 
 ## Important Current Worktree Notes
 

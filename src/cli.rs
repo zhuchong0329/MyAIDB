@@ -24,6 +24,18 @@ where
     W: Write,
 {
     let mut catalog = Catalog::new();
+    run_repl_with_catalog(&mut catalog, &mut reader, writer)
+}
+
+pub fn run_repl_with_catalog<R, W>(
+    catalog: &mut Catalog,
+    mut reader: R,
+    writer: &mut W,
+) -> io::Result<()>
+where
+    R: BufRead,
+    W: Write,
+{
     let mut pending = String::new();
     let mut line = String::new();
 
@@ -42,7 +54,7 @@ where
         let bytes_read = reader.read_line(&mut line)?;
         if bytes_read == 0 {
             if !pending.trim().is_empty() {
-                process_command(&mut catalog, pending.trim(), writer)?;
+                process_command(catalog, pending.trim(), writer)?;
             }
             break;
         }
@@ -61,7 +73,7 @@ where
             continue;
         }
 
-        let flow = process_command(&mut catalog, pending.trim(), writer)?;
+        let flow = process_command(catalog, pending.trim(), writer)?;
         pending.clear();
 
         if flow == CommandFlow::Quit {
@@ -77,6 +89,13 @@ where
     W: Write,
 {
     let mut catalog = Catalog::new();
+    run_interactive_repl_with_catalog(&mut catalog, writer)
+}
+
+pub fn run_interactive_repl_with_catalog<W>(catalog: &mut Catalog, writer: &mut W) -> io::Result<()>
+where
+    W: Write,
+{
     let mut editor = DefaultEditor::new().map_err(to_io_error)?;
     let mut pending = String::new();
 
@@ -113,7 +132,7 @@ where
         }
 
         let completed_command = pending.trim().to_string();
-        let flow = process_command(&mut catalog, &completed_command, writer)?;
+        let flow = process_command(catalog, &completed_command, writer)?;
         if flow == CommandFlow::Continue {
             let _ = editor.add_history_entry(completed_command.as_str());
         }
@@ -125,6 +144,57 @@ where
     }
 
     Ok(())
+}
+
+pub fn run_seed_script<R>(catalog: &mut Catalog, mut reader: R) -> io::Result<usize>
+where
+    R: BufRead,
+{
+    let mut pending = String::new();
+    let mut line = String::new();
+    let mut commands_loaded = 0;
+
+    loop {
+        line.clear();
+        let bytes_read = reader.read_line(&mut line)?;
+        if bytes_read == 0 {
+            if !pending.trim().is_empty() {
+                execute_seed_command(catalog, pending.trim())?;
+                commands_loaded += 1;
+            }
+            break;
+        }
+
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with("--") {
+            continue;
+        }
+
+        if !pending.is_empty() {
+            pending.push(' ');
+        }
+        pending.push_str(trimmed);
+
+        if !is_complete_command(&pending) {
+            continue;
+        }
+
+        execute_seed_command(catalog, pending.trim())?;
+        commands_loaded += 1;
+        pending.clear();
+    }
+
+    Ok(commands_loaded)
+}
+
+fn execute_seed_command(catalog: &mut Catalog, command: &str) -> io::Result<()> {
+    execute_sql(catalog, command).map(|_| ()).map_err(|error| {
+        io::Error::other(format!(
+            "seed command `{}` failed: {}",
+            normalize_command(command),
+            format_execute_error(&error)
+        ))
+    })
 }
 
 fn to_io_error(error: ReadlineError) -> io::Error {

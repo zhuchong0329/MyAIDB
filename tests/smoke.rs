@@ -1,5 +1,6 @@
 use std::io::Write;
 use std::process::{Command, Stdio};
+use std::{env, fs};
 
 #[test]
 fn library_identity_is_available() {
@@ -95,5 +96,52 @@ select name from users where age >= 18 order by id desc limit 1;
     assert!(stdout.contains("name"));
     assert!(stdout.contains("Linus"));
     assert!(stdout.contains("(1 row)"));
+    assert!(stdout.contains("bye"));
+}
+
+#[test]
+fn binary_loads_seed_file_before_starting_repl() {
+    let seed_path = env::temp_dir().join(format!(
+        "myaidb-seed-smoke-{}-{}.sql",
+        std::process::id(),
+        "load"
+    ));
+    fs::write(
+        &seed_path,
+        "create table users (id integer, name text, age integer);
+insert into users values (1, 'Ada', 37);
+insert into users values (2, 'Grace', 17);
+",
+    )
+    .expect("seed file should be writable");
+
+    let mut child = Command::new(env!("CARGO_BIN_EXE_myaidb"))
+        .arg("--seed")
+        .arg(&seed_path)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("myaidb binary should run");
+
+    {
+        let stdin = child.stdin.as_mut().expect("stdin should be piped");
+        stdin
+            .write_all(
+                b"select name from users where age >= 18 order by id desc;
+.quit
+",
+            )
+            .expect("stdin write should work");
+    }
+
+    let output = child.wait_with_output().expect("myaidb binary should exit");
+    fs::remove_file(&seed_path).expect("seed file should be removable");
+
+    assert!(output.status.success());
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout should be valid UTF-8");
+    assert!(stdout.contains("loading seed data"));
+    assert!(stdout.contains("seed data loaded (3 commands)"));
+    assert!(stdout.contains("Ada"));
     assert!(stdout.contains("bye"));
 }
