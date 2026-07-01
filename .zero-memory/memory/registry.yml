@@ -1,5 +1,8 @@
 # Registry of stable memory IDs, slugs, and workspace-relative canonical package paths.
 memories:
+  - id: cli.repl.executor-wrapper
+    slug: cli-repl-executor-wrapper
+    path: .zero-memory/memory/cli-repl-executor-wrapper/MEMORY.md
   - id: sql.executor.insert-execution
     slug: sql-executor-insert-execution
     path: .zero-memory/memory/sql-executor-insert-execution/MEMORY.md

@@ -95,3 +95,31 @@ Related Files: `src/sql/executor.rs`, `src/sql/mod.rs`, `src/lib.rs`
   - Loop 8 Start
   - Loop 8 End
 - Status: new
+
+## DL-20260701-040047.000Z-cli-repl-wraps-executor
+
+- Timestamp: 2026-07-01T04:00:47Z
+- Source Slug: feature-6-create-table-execution
+- Source Context: `.zero-memory/context/feature-6-create-table-execution/context.md`
+- Type: best-practice
+- Pattern-Key: cli.repl.wraps-sql-executor
+- Summary: MyAIDB Loop 9 adds an interactive CLI/REPL as a thin session and formatting layer over the SQL executor.
+- Details: The CLI maintains one process-local `Catalog`, reads commands from stdin, dispatches SQL to `execute_sql`, handles CLI-only meta commands such as `.help`, `.quit`, and `show tables`, and renders `ExecuteResult` values into plain text. `main.rs` remains a small argument router: no args or `repl` start the REPL, while `--help` and `--version` stay non-interactive. The CLI does not own SQL semantics; create/insert/select behavior remains in `src/sql/executor.rs`.
+- Why Reusable: Future CLI features should keep command/session concerns separate from SQL execution semantics, preserve testable stdin/stdout injection, and add CLI-only commands deliberately without teaching the parser every shell command.
+- Suggested Memory Targets:
+  - cli.repl.executor-wrapper
+  - workspace.project.sql-execution
+- Related Files:
+  - `src/cli.rs`
+  - `src/main.rs`
+  - `tests/smoke.rs`
+- Related Symbols:
+  - `run_repl`
+  - `process_command`
+  - `print_execute_result`
+  - `print_select_result`
+  - `Catalog::table_names`
+- Source Sections:
+  - Loop 9 Start
+  - Loop 9 End
+- Status: new
