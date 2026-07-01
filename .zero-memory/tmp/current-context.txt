@@ -1,1 +1,1 @@
-.zero-memory/context/feature-5-sql-frontend/context.md
+.zero-memory/context/feature-6-create-table-execution/context.md

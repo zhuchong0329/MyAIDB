@@ -5,7 +5,8 @@ pub use core::{
     Catalog, CatalogError, Column, Row, Schema, SchemaError, Table, TableError, Value, ValueType,
 };
 pub use sql::{
-    parse_statement, ColumnDef, LexError, Literal, ParseError, Statement, Token, TokenKind,
+    execute_sql, parse_statement, ColumnDef, ExecuteError, ExecuteResult, LexError, Literal,
+    ParseError, Statement, Token, TokenKind,
 };
 
 pub const PROJECT_NAME: &str = "MyAIDB";

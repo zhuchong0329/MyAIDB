@@ -18,11 +18,10 @@ description: MyAIDB project default zero-memory context.
 
 - Workspace root was initialized as a Git repository on branch `main`.
 - zero-memory is not tracked as a submodule in the public repository; copied Codex skills are tracked directly under `.codex/skills`.
-- Remote `origin` was set to `git@github.com:zhuchong0329/MyAIDB.git`.
+- Remote `origin` is currently `https://github.com/zhuchong0329/MyAIDB.git`.
 - Public history was sanitized to avoid exposing private source repository metadata before pushing.
 - Git author and committer metadata were changed to `zhuchong0329 <zhuchong0329@users.noreply.github.com>` for public-safe commits.
-- Push is still pending because GitHub SSH returned `Permission denied (publickey)`.
-- Alternative push path: HTTPS remote can be used instead of SSH, but GitHub requires a Personal Access Token or Git Credential Manager/browser login rather than account password.
+- HTTPS push to GitHub has succeeded from this workspace.
 
 ## Project Anchors
 
@@ -40,6 +39,7 @@ description: MyAIDB project default zero-memory context.
 - Feature 3 completed: in-memory `Table` stores owned rows after schema validation, preserving row order and rejecting invalid rows without mutation. Next loop is Feature 4: `Catalog`.
 - Feature 4 completed: in-memory `Catalog` owns multiple tables, supports exact-name create/insert/lookup, mutable table access, and insertion-order table-name listing. Next loop should start the SQL frontend boundary.
 - Feature 5 completed: SQL frontend boundary parses a tiny SQL subset into AST without execution. It includes lexer/token/parser/AST support for `CREATE TABLE` and `INSERT INTO ... VALUES`, case-insensitive keywords, exact identifier preservation, `ValueType` column types, and SQL `Literal` insert values. Next loop should likely introduce binder/execution boundary decisions.
+- Feature 6 completed: SQL executor now supports `CREATE TABLE` against the in-memory `Catalog` through `execute_sql`, with unified `ExecuteError` handling for parse, schema, catalog, and unsupported statement cases. `INSERT` remains explicitly unsupported and should be the likely next feature loop.
 
 ## Rust Environment
 
