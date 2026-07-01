@@ -38,6 +38,7 @@ fn binary_runs_repl_workflow_from_stdin() {
 insert into users values (1, 'Ada');
 select * from users;
 show tables;
+.schema users;
 .quit
 ",
             )
@@ -55,5 +56,8 @@ show tables;
     assert!(stdout.contains("1  | Ada"));
     assert!(stdout.contains("tables"));
     assert!(stdout.contains("users"));
+    assert!(stdout.contains("table: users"));
+    assert!(stdout.contains("2 | name"));
+    assert!(stdout.contains("Text"));
     assert!(stdout.contains("bye"));
 }

@@ -14,16 +14,18 @@ scope: project
 actionability: reference-only
 layer: detailed
 status: active
-last_updated_at: 2026-07-01T05:41:59Z
+last_updated_at: 2026-07-01T06:17:13Z
 freshness_profile: code-env
 source_daily_learning_ids:
   - DL-20260701-040047.000Z-cli-repl-wraps-executor
   - DL-20260701-054159.000Z-repl-tty-line-editor
-recurrence_count: 2
-last_confirmed_at: 2026-07-01T05:41:59Z
+  - DL-20260701-061713.000Z-cli-schema-introspection
+recurrence_count: 3
+last_confirmed_at: 2026-07-01T06:17:13Z
 recent_confirmation_ids:
   - DL-20260701-040047.000Z-cli-repl-wraps-executor
   - DL-20260701-054159.000Z-repl-tty-line-editor
+  - DL-20260701-061713.000Z-cli-schema-introspection
 load_next: []
 related:
   - workspace.project.sql-execution
@@ -40,6 +42,11 @@ related_symbols:
   - Catalog::table_names
   - run_interactive_repl
   - std::io::IsTerminal
+  - parse_schema_command
+  - print_schema_command
+  - Catalog::table
+  - Table::schema
+  - Schema::columns
 ---
 
 # CLI REPL Executor Wrapper
@@ -62,6 +69,8 @@ The REPL owns one process-local `Catalog` for the session. It should dispatch `C
 
 Do not add CLI-only commands to the SQL parser unless they are intended to become SQL language features. `show tables` belongs in the CLI for now and should use `Catalog::table_names`.
 
+Schema inspection is also a CLI shell feature for now. Commands such as `.schema`, `schema`, and `describe <table>` should be parsed before SQL dispatch, then rendered from core read APIs: `Catalog::table_names` for all tables, and `Catalog::table` plus `Table::schema().columns()` for one table. Reuse the CLI table formatting helpers and report missing tables without exiting the session.
+
 ## Source Extraction
 
-Stable facts came from Loop 9 and Loop 9.5 implementation and verification recorded in `.zero-memory/daily/learning.2026-07-01.md`. The preserved rule is the separation between CLI input/session behavior and SQL execution semantics.
+Stable facts came from Loop 9, Loop 9.5, and Loop 10 implementation and verification recorded in `.zero-memory/daily/learning.2026-07-01.md`. The preserved rule is the separation between CLI input/session/inspection behavior and SQL execution semantics.

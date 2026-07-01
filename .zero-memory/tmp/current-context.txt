@@ -1,1 +1,1 @@
-.zero-memory/context/feature-6-create-table-execution/context.md
+.zero-memory/context/myaidb-sql-database-loops/context.md

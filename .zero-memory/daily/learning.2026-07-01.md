@@ -150,3 +150,30 @@ Related Files: `src/sql/executor.rs`, `src/sql/mod.rs`, `src/lib.rs`
   - Loop 9.5 Start
   - Loop 9.5 End
 - Status: new
+
+## DL-20260701-061713.000Z-cli-schema-introspection
+
+- Timestamp: 2026-07-01T06:17:13Z
+- Source Slug: feature-6-create-table-execution
+- Source Context: `.zero-memory/context/feature-6-create-table-execution/context.md`
+- Type: best-practice
+- Pattern-Key: cli.repl.wraps-sql-executor
+- Summary: MyAIDB CLI schema introspection should remain a shell-level command over core Catalog/Table/Schema APIs.
+- Details: Loop 10 added `.schema`, `schema`, `.schema <table>`, `schema <table>`, and `describe <table>` in `src/cli.rs` without extending the SQL parser. The REPL checks these commands before SQL dispatch, uses `Catalog::table_names` for all-table output, and uses `Catalog::table`, `Table::schema`, and `Schema::columns` for single-table output. The output is formatted through the existing CLI table helpers and reports missing tables without exiting the session.
+- Why Reusable: Future CLI inspection commands such as explain/help/schema-style features should first decide whether they are shell commands or SQL language features. When they only inspect session state, keeping them in the CLI avoids parser churn and preserves executor semantics.
+- Suggested Memory Targets:
+  - cli.repl.executor-wrapper
+- Related Files:
+  - `src/cli.rs`
+  - `tests/smoke.rs`
+- Related Symbols:
+  - `parse_schema_command`
+  - `print_schema_command`
+  - `Catalog::table_names`
+  - `Catalog::table`
+  - `Table::schema`
+  - `Schema::columns`
+- Source Sections:
+  - 2026-07-01 Loop 10 Scope Alignment Draft
+  - Loop 10 End
+- Status: new

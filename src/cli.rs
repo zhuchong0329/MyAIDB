@@ -11,6 +11,13 @@ enum CommandFlow {
     Quit,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SchemaCommand<'a> {
+    All,
+    Table(&'a str),
+    InvalidUsage,
+}
+
 pub fn run_repl<R, W>(mut reader: R, writer: &mut W) -> io::Result<()>
 where
     R: BufRead,
@@ -130,6 +137,7 @@ fn is_complete_command(command: &str) -> bool {
 
     is_meta_command(normalized)
         || is_show_tables_command(normalized)
+        || parse_schema_command(normalized).is_some()
         || trimmed.ends_with(';')
         || looks_like_complete_sql(normalized)
 }
@@ -175,6 +183,10 @@ where
             print_tables(catalog, writer)?;
             Ok(CommandFlow::Continue)
         }
+        _ if let Some(schema_command) = parse_schema_command(normalized) => {
+            print_schema_command(catalog, schema_command, writer)?;
+            Ok(CommandFlow::Continue)
+        }
         _ => {
             match execute_sql(catalog, command) {
                 Ok(result) => print_execute_result(result, writer)?,
@@ -190,6 +202,28 @@ fn is_show_tables_command(command: &str) -> bool {
     matches!(lower.as_str(), "show tables" | "show table")
 }
 
+fn parse_schema_command(command: &str) -> Option<SchemaCommand<'_>> {
+    let parts = command.split_whitespace().collect::<Vec<_>>();
+    let first = parts.first()?;
+
+    if first.eq_ignore_ascii_case(".schema") || first.eq_ignore_ascii_case("schema") {
+        return match parts.len() {
+            1 => Some(SchemaCommand::All),
+            2 => Some(SchemaCommand::Table(parts[1])),
+            _ => Some(SchemaCommand::InvalidUsage),
+        };
+    }
+
+    if first.eq_ignore_ascii_case("describe") {
+        return match parts.len() {
+            2 => Some(SchemaCommand::Table(parts[1])),
+            _ => Some(SchemaCommand::InvalidUsage),
+        };
+    }
+
+    None
+}
+
 fn print_repl_help<W>(writer: &mut W) -> io::Result<()>
 where
     W: Write,
@@ -199,6 +233,8 @@ where
     writeln!(writer, "  INSERT INTO ... VALUES ...")?;
     writeln!(writer, "  SELECT ... FROM ... [LIMIT n]")?;
     writeln!(writer, "  SHOW TABLES")?;
+    writeln!(writer, "  .schema [table]")?;
+    writeln!(writer, "  describe <table>")?;
     writeln!(writer, "  .help")?;
     writeln!(writer, "  .quit")?;
     Ok(())
@@ -225,6 +261,84 @@ where
         "({} {})",
         names.len(),
         pluralize(names.len(), "table")
+    )?;
+    Ok(())
+}
+
+fn print_schema_command<W>(
+    catalog: &Catalog,
+    command: SchemaCommand<'_>,
+    writer: &mut W,
+) -> io::Result<()>
+where
+    W: Write,
+{
+    match command {
+        SchemaCommand::All => print_all_schemas(catalog, writer),
+        SchemaCommand::Table(table_name) => print_table_schema(catalog, table_name, writer),
+        SchemaCommand::InvalidUsage => writeln!(writer, "error: usage: .schema [table]"),
+    }
+}
+
+fn print_all_schemas<W>(catalog: &Catalog, writer: &mut W) -> io::Result<()>
+where
+    W: Write,
+{
+    let names = catalog.table_names().collect::<Vec<_>>();
+
+    if names.is_empty() {
+        writeln!(writer, "no tables")?;
+        return Ok(());
+    }
+
+    for (index, name) in names.iter().enumerate() {
+        if index > 0 {
+            writeln!(writer)?;
+        }
+        print_table_schema(catalog, name, writer)?;
+    }
+
+    Ok(())
+}
+
+fn print_table_schema<W>(catalog: &Catalog, table_name: &str, writer: &mut W) -> io::Result<()>
+where
+    W: Write,
+{
+    let table = match catalog.table(table_name) {
+        Ok(table) => table,
+        Err(error) => {
+            writeln!(writer, "error: Catalog({error:?})")?;
+            return Ok(());
+        }
+    };
+    let headers = ["#", "column", "type"];
+    let rows = table
+        .schema()
+        .columns()
+        .iter()
+        .enumerate()
+        .map(|(index, column)| {
+            vec![
+                (index + 1).to_string(),
+                column.name().to_string(),
+                format!("{:?}", column.value_type()),
+            ]
+        })
+        .collect::<Vec<_>>();
+    let widths = column_widths(&headers, &rows);
+
+    writeln!(writer, "table: {}", table.name())?;
+    print_cells(&headers, &widths, writer)?;
+    print_separator(&widths, writer)?;
+    for row in &rows {
+        print_cells(row, &widths, writer)?;
+    }
+    writeln!(
+        writer,
+        "({} {})",
+        rows.len(),
+        pluralize(rows.len(), "column")
     )?;
     Ok(())
 }
@@ -412,6 +526,70 @@ show tables;
 
         assert!(output.contains("commands:"));
         assert!(output.contains("SHOW TABLES"));
+        assert!(output.contains(".schema [table]"));
         assert!(output.contains("no tables"));
+    }
+
+    #[test]
+    fn repl_prints_all_schemas() {
+        let output = run("\
+create table users (id integer, name text);
+create table documents (doc_id integer, embedding vector);
+.schema
+.quit
+");
+
+        assert!(output.contains("table: users"));
+        assert!(output.contains("1 | id"));
+        assert!(output.contains("2 | name"));
+        assert!(output.contains("Integer"));
+        assert!(output.contains("Text"));
+        assert!(output.contains("table: documents"));
+        assert!(output.contains("1 | doc_id"));
+        assert!(output.contains("2 | embedding"));
+        assert!(output.contains("Vector"));
+        assert!(output.contains("(2 columns)"));
+    }
+
+    #[test]
+    fn repl_prints_single_table_schema_with_describe_alias() {
+        let output = run("\
+create table users (id integer, name text);
+describe users;
+.quit
+");
+
+        assert!(output.contains("table: users"));
+        assert!(output.contains("# | column | type"));
+        assert!(output.contains("1 | id     | Integer"));
+        assert!(output.contains("2 | name   | Text"));
+        assert!(output.contains("(2 columns)"));
+    }
+
+    #[test]
+    fn repl_supports_schema_without_dot() {
+        let output = run("\
+create table users (id integer);
+schema users;
+.quit
+");
+
+        assert!(output.contains("table: users"));
+        assert!(output.contains("id     | Integer"));
+    }
+
+    #[test]
+    fn repl_reports_missing_schema_table_and_continues() {
+        let output = run("\
+.schema missing
+create table users (id integer);
+show tables;
+.quit
+");
+
+        assert!(output.contains("error: Catalog(TableNotFound"));
+        assert!(output.contains("created table users"));
+        assert!(output.contains("tables"));
+        assert!(output.contains("users"));
     }
 }
