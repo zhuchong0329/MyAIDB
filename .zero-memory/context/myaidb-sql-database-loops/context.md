@@ -8,6 +8,7 @@ description: Long-running MyAIDB SQL database implementation loops, including pa
 - active; Loop 12 scope aligned around auto embed, ready for implementation in another environment.
 - 2026-07-02 local reload completed in the Windows workspace; `main` and `origin/main` point at `73cdcb6 record loop 12 scope`.
 - Active context pointer verified: `.zero-memory/context/myaidb-sql-database-loops/context.md`.
+- Loop 12 scope is being expanded into a multi-substep autoEmbed loop; implementation should not start until the user confirms this expanded substep plan.
 
 ## Current Summary
 
@@ -127,6 +128,73 @@ description: Long-running MyAIDB SQL database implementation loops, including pa
 - Preserve current SQL semantics where possible; keep this first loop focused on the write-time text-to-vector pipeline, not vector search.
 - Expected touched areas: a new embedding/autoembed module or core structures, `src/cli.rs` command dispatch/session state, insert execution path or a wrapper around `execute_sql`, tests, and seeded/manual CLI coverage.
 - Verification target: `cargo fmt`, `cargo test`, `cargo build`, `cargo fmt --check`, `cargo clippy --all-targets --all-features -- -D warnings`, and `git diff --check`.
+
+## 2026-07-02 Loop 12 Expanded Substep Plan
+
+- User wants Loop 12 to include the autoEmbed evolution path from provider through observability, split into strict substeps. After each substep succeeds, continue automatically to the next substep.
+- User removed the previous 12.8 persistence decision gate from Loop 12; persistence is not part of this loop.
+- Global success gate for every substep: focused tests for the substep pass, no unrelated refactors, `.zero-memory` context updated with substep outcome, and the current code still preserves exact identifier matching and existing SQL semantics unless the substep explicitly changes them.
+- Global pause/report conditions: stop and report only when completing the current substep is genuinely blocked, such as the same implementation or verification failure still not being resolved after 10 focused fix attempts, a required user secret/credential/approval/external state is unavailable, or the task would require an explicitly destructive operation that cannot be done safely without user confirmation.
+- Design expansion is not by itself a pause/report condition. If a substep needs parser, executor, CLI, schema, or metadata changes to complete the agreed Loop 12 scope, implement them and record the decision in `.zero-memory`.
+- After each substep succeeds, update this context with progress, update daily learning when there is reusable learning, commit all code and memory changes, and then continue to the next substep automatically.
+- Each substep commit should be a rollback/inspection point with a message shaped like `loop 12.x ...`.
+- Do not leave completed-substep changes uncommitted unless a pause/report condition is reached.
+
+Substep Progress:
+
+- 12.1 embedding provider boundary: pending.
+- 12.2 in-memory autoEmbed rule metadata and validation: pending.
+- 12.3 insert-time null placeholder generation: pending.
+- 12.4 CLI `.autoembed` rule management: pending.
+- 12.5 CREATE TABLE autoEmbed declaration syntax: pending.
+- 12.6 rule as schema/table metadata: pending.
+- 12.7 minimal observability: pending.
+
+Substep 12.1: embedding provider boundary.
+
+- Goal: introduce a provider trait and deterministic offline provider.
+- Success conditions: provider returns `Vec<f32>`, output is deterministic for the same text, different texts can produce different vectors, dimension is fixed and test-covered, and no real model/network dependency is introduced.
+
+Substep 12.2: in-memory autoEmbed rule metadata and validation.
+
+- Goal: represent rules as table/source-text-column/target-vector-column metadata.
+- Success conditions: rule creation validates table existence, exact source/target column names, source type `Text`, target type `Vector`, duplicate/conflicting rule behavior is explicit, and validation errors are test-covered.
+
+Substep 12.3: insert-time null placeholder generation.
+
+- Goal: when an insert targets a table with a rule and the target vector value is `null`, compute `embed(source_text)` and replace the placeholder with `Value::Vector`.
+- Success conditions: insert succeeds with `null` placeholder when rule exists, fails under existing strict type rules when no rule exists, fails clearly when source value is not text, and still delegates final validation/mutation to `Table::insert`.
+
+Substep 12.4: CLI `.autoembed` rule management.
+
+- Goal: support `.autoembed <table> <source_text_column> <target_vector_column>` and `.autoembed` listing for the current in-memory session.
+- Success conditions: CLI can register rules, list rules, display validation errors without exiting, and a smoke test demonstrates create-table, register-rule, insert-null-placeholder, and select/show output.
+
+Substep 12.5: CREATE TABLE autoEmbed declaration syntax.
+
+- Goal: support declaring autoEmbed in DDL so rules can be defined at table creation time.
+- Candidate syntax to validate before coding: `embedding vector autoembed(body)`.
+- Success conditions: lexer/parser/AST can represent the declaration, create-table execution installs equivalent rule metadata, `.schema` or schema-adjacent output shows the declaration, and old `CREATE TABLE` syntax still works.
+
+Substep 12.6: rule as schema/table metadata.
+
+- Goal: move from purely CLI session registration toward table-owned or catalog-owned metadata that represents autoEmbed as part of table definition.
+- Success conditions: rules created by CLI and rules declared in `CREATE TABLE` share one internal representation, schema display can reveal them, and insert execution reads from that metadata instead of a separate ad hoc CLI-only store.
+
+Substep 12.7: minimal observability.
+
+- Goal: expose configured autoEmbed rules and simple status for generated values.
+- Success conditions: users can observe configured rules and generated vector dimensions/counts through CLI or schema-adjacent output; failure/unsupported states are explicit.
+
+Loop 12 final verification target:
+
+- `cargo fmt`
+- `cargo test`
+- `cargo build`
+- `cargo fmt --check`
+- `cargo clippy --all-targets --all-features -- -D warnings`
+- `git diff --check`
+- Updated `.zero-memory` context and daily learning.
 
 ## Important Current Worktree Notes
 
