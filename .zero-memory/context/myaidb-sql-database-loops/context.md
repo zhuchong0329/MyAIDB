@@ -5,7 +5,7 @@ description: Long-running MyAIDB SQL database implementation loops, including pa
 
 ## Status
 
-- active; seeded development REPL task complete and verified.
+- active; Loop 12 scope aligned around auto embed, ready for implementation in another environment.
 
 ## Current Summary
 
@@ -15,7 +15,7 @@ description: Long-running MyAIDB SQL database implementation loops, including pa
 - Loop 9 completed an interactive CLI/REPL for manual create/insert/select/show-tables workflows.
 - Loop 9.5 completed TTY line editing through `rustyline` while preserving the generic `BufRead` runner for piped stdin and tests.
 - Loop 10 completed CLI-only schema introspection with `.schema`, `schema`, and `describe <table>`, reusing `Catalog`, `Table`, and `Schema` APIs without changing SQL parser semantics.
-- Current active task: seeded development REPL script completed; next step is summarize, commit, or continue with the next loop.
+- Current active task: Loop 12 auto embed implementation should start next; persistent storage proposal is superseded.
 
 ## Loop 11 Scope Draft
 
@@ -68,6 +68,63 @@ description: Long-running MyAIDB SQL database implementation loops, including pa
 - Verified `printf '.quit\n' | scripts/dev_seed_repl.sh` starts the seeded CLI and reports `seed data loaded (65 commands)`.
 - Verification passed: `cargo fmt`, `cargo test` (85 library tests, 5 smoke tests), `cargo build`, `cargo fmt --check`, `cargo clippy --all-targets --all-features -- -D warnings`, and `git diff --check`.
 - Reusable learning logged as `DL-20260701-072208.000Z-seeded-dev-repl` and curated into `cli.repl.executor-wrapper`; memory graph validation passed with only generated-index warnings.
+
+## 2026-07-01 Loop 12 Scope Alignment Draft
+
+- User asked to start Loop 12 scope alignment after the seeded dev REPL task.
+- Current worktree check: clean at the start of alignment.
+- Recommended Loop 12 feature: first durable local database file support, moving MyAIDB beyond purely process-local memory.
+- Proposed goal: allow users to start the CLI with a database file, keep schema/data across process restarts, and continue using existing SQL/CLI behavior.
+- Proposed in scope:
+  - Add a storage module that can serialize and deserialize the full `Catalog` snapshot.
+  - Persist tables, schemas, column order/types, and rows/values for currently supported value kinds.
+  - Add CLI option such as `--db <file>` to load an existing database file or create one if missing.
+  - Auto-save after successful mutating SQL commands (`CREATE TABLE`, `INSERT`) when `--db` is active.
+  - Keep `SELECT`, `show tables`, `.schema`, and `describe` read-only.
+  - Support `--db <file> --seed <seed.sql>` so a new local database can be initialized once, then reused without reseeding.
+  - Use atomic-ish save behavior via writing a temp file then renaming over the target.
+  - Add unit tests for storage round-trip and error handling, plus binary smoke tests for create/insert in one process and select after restart.
+- Proposed file format for Loop 12: a simple JSON snapshot using `serde`, chosen for debuggability and speed of implementation rather than final database-engine architecture.
+- Proposed out of scope: WAL, page layout, B-trees, indexes, transactions, concurrent writers, locking protocol, crash recovery guarantees, schema migrations, partial flush, compaction, binary format, encryption, and SQL `SAVE`/`ATTACH` commands.
+- Rationale: this is larger than prior loops because it touches data model serialization, CLI startup/shutdown semantics, mutation persistence, test harnesses across process restarts, and user workflow. It remains bounded by snapshot persistence instead of full storage-engine design.
+
+## 2026-07-01 Loop 12 Persistence Tradeoff Question
+
+- User asked whether JSON persistence means every `INSERT` rewrites the file.
+- Answer: with the proposed simple snapshot model and auto-save-after-mutation semantics, yes, each successful mutating command would rewrite the whole JSON file.
+- Design tradeoff: acceptable for Loop 12 as a correctness/debuggability milestone, but not a real database storage architecture. Alternatives include manual `.save`, save-on-exit, batched/debounced autosave, append-only JSONL log, or WAL/page storage in later loops.
+
+## 2026-07-01 Loop 12 Auto Embed Scope Redefinition
+
+- User rejected defining persistent storage this early and asked to redefine Loop 12 around auto embed.
+- Correction: previous Loop 12 persistence proposal is superseded; do not implement storage in Loop 12.
+- Current code facts: README says real embedding models should live behind a provider boundary and not be required for core tests; core `Value` already supports `Vector(Vec<f32>)` and `ValueType::Vector`, but SQL literals cannot yet express vectors and no auto-embed path exists.
+- Recommended Loop 12 feature: first auto-embed pipeline inside the in-memory database.
+- Proposed goal: let users define a table where a text column automatically produces a vector column during insert, using a deterministic local embedding provider for tests and manual use.
+- Proposed in scope:
+  - Add an embedding provider abstraction, with a deterministic local fake/hash provider as the default.
+  - Add metadata for table-level auto-embed rules, e.g. source text column -> target vector column.
+  - Add CLI-only commands to manage rules for now, such as `.autoembed <table> <source_text_column> <target_vector_column>` and `.autoembed`.
+  - On `INSERT`, if a rule exists and the target vector column is omitted or null-like by policy, compute the vector from the source text and store it.
+  - Keep the provider deterministic and offline; no network or real model dependency.
+  - Show auto-embed rules in CLI/schema-adjacent output.
+  - Add unit tests for provider determinism, rule validation, insert-time vector generation, missing/wrong-type columns, and CLI smoke using seeded docs.
+- Proposed out of scope: real OpenAI/local model integration, network calls, vector similarity search, vector indexes, schema-level SQL syntax, persistence of rules, background embedding jobs, async execution, updating existing rows, multiple providers, and chunking.
+- Rationale: this keeps storage choices open while introducing the core "AI DB" boundary: text-to-vector generation as database behavior, behind a provider interface that future loops can replace with real embeddings or connect to vector search.
+
+## 2026-07-02 Loop 12 Handoff
+
+- Final Loop 12 direction: implement auto embed, not persistence.
+- Start by introducing an embedding provider boundary. Recommended shape: a trait that accepts text and returns `Vec<f32>`, plus a deterministic offline provider for tests/manual use.
+- Keep real model integration out of the process for now. Future real embeddings should plug in behind the provider boundary; they do not need to be embedded directly into the database process.
+- Add in-memory auto-embed rule metadata outside SQL parser first. Recommended CLI shape:
+  - `.autoembed <table> <source_text_column> <target_vector_column>` to register a rule.
+  - `.autoembed` to list configured rules.
+- Rule validation should check table existence, exact source/target column names, source type `Text`, and target type `Vector`.
+- Insert-time behavior should compute the target vector from the source text and store it when a rule exists. The next implementer should decide the exact insert syntax/policy for omitted vector targets versus placeholder values, then record that decision before coding.
+- Preserve current SQL semantics where possible; keep this first loop focused on the write-time text-to-vector pipeline, not vector search.
+- Expected touched areas: a new embedding/autoembed module or core structures, `src/cli.rs` command dispatch/session state, insert execution path or a wrapper around `execute_sql`, tests, and seeded/manual CLI coverage.
+- Verification target: `cargo fmt`, `cargo test`, `cargo build`, `cargo fmt --check`, `cargo clippy --all-targets --all-features -- -D warnings`, and `git diff --check`.
 
 ## Important Current Worktree Notes
 
