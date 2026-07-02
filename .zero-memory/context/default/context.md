@@ -40,6 +40,9 @@ description: MyAIDB project default zero-memory context.
 - Feature 4 completed: in-memory `Catalog` owns multiple tables, supports exact-name create/insert/lookup, mutable table access, and insertion-order table-name listing. Next loop should start the SQL frontend boundary.
 - Feature 5 completed: SQL frontend boundary parses a tiny SQL subset into AST without execution. It includes lexer/token/parser/AST support for `CREATE TABLE` and `INSERT INTO ... VALUES`, case-insensitive keywords, exact identifier preservation, `ValueType` column types, and SQL `Literal` insert values. Next loop should likely introduce binder/execution boundary decisions.
 - Feature 6 completed: SQL executor now supports `CREATE TABLE` against the in-memory `Catalog` through `execute_sql`, with unified `ExecuteError` handling for parse, schema, catalog, and unsupported statement cases. `INSERT` remains explicitly unsupported and should be the likely next feature loop.
+- The active long-running implementation context has moved to `.zero-memory/context/myaidb-sql-database-loops/context.md`.
+- Feature 7 completed `INSERT`; Feature 8 completed basic `SELECT`; Feature 9 added the CLI/REPL; Feature 9.5 added TTY line editing; Feature 10 added CLI schema introspection; Feature 11 added `WHERE` and `ORDER BY`; Feature 11.5 added seeded dev REPL support.
+- Feature 12 scope is aligned around the first in-memory auto-embed pipeline, not persistence. The persistence proposal was explicitly superseded.
 
 ## Rust Environment
 

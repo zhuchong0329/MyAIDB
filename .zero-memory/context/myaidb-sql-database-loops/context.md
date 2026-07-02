@@ -6,6 +6,8 @@ description: Long-running MyAIDB SQL database implementation loops, including pa
 ## Status
 
 - active; Loop 12 scope aligned around auto embed, ready for implementation in another environment.
+- 2026-07-02 local reload completed in the Windows workspace; `main` and `origin/main` point at `73cdcb6 record loop 12 scope`.
+- Active context pointer verified: `.zero-memory/context/myaidb-sql-database-loops/context.md`.
 
 ## Current Summary
 
@@ -128,9 +130,9 @@ description: Long-running MyAIDB SQL database implementation loops, including pa
 
 ## Important Current Worktree Notes
 
-- Loop 10 code and tests are implemented and verified but not yet committed in this context handoff.
-- Verification already passed for Loop 10: `cargo fmt`, `cargo test` (72 library tests, 3 smoke tests), `cargo build`, `cargo fmt --check`, `cargo clippy --all-targets --all-features -- -D warnings`, and `git diff --check`.
-- Current uncommitted task files may include `src/cli.rs`, `tests/smoke.rs`, zero-memory daily/memory/context updates, and observability outcome events.
+- 2026-07-02 reload note: the earlier Loop 10 uncommitted handoff note is superseded by the current Git state.
+- Current checked commit at reload: `73cdcb6 record loop 12 scope`.
+- Current task is alignment before implementing Loop 12 auto embed.
 
 ## Context Migration
 
